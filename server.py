@@ -72,23 +72,38 @@ async def generate_catchcopy(hearing: str = Form(...)):
 
         client = anthropic.Anthropic(api_key=api_key)
 
-        prompt = f"""以下のヒアリングシートをもとに、LPのメインキャッチコピー候補を5つ生成してください。
+        prompt = f"""以下のヒアリングシートをもとに、LPのメインキャッチコピーをカテゴリ別に生成してください。
 
 【ヒアリングシート】
 {json.dumps(hearing_dict, ensure_ascii=False, indent=2)}
 
 【要件】
-- 各コピーは20〜30文字
+- 各コピーは15〜35文字
 - ターゲットの悩みや感情に直接刺さる表現
-- 5つはそれぞれ切り口を変える（問いかけ型・断言型・共感型・数字型・ベネフィット型）
+- markdownの**や##は使わない
+
+【カテゴリと生成数】
+1. 悩み訴求型：ターゲットの痛みや不満を直接突く（3案）
+2. 結果・変化型：施術後の変化・ビフォーアフターを訴える（3案）
+3. 共感・感情型：「わかる、つらいよね」と寄り添う表現（2案）
+4. 信頼・実績型：数字・権威・実績で安心感を出す（2案）
+5. 問いかけ型：読んだ人が「自分のことだ」と感じる問い（2案）
 
 【出力形式】
 JSONのみ出力してください。
-{{"catchcopy_candidates": ["コピー1", "コピー2", "コピー3", "コピー4", "コピー5"]}}"""
+{{
+  "categories": [
+    {{"label": "悩み訴求型", "candidates": ["コピー1", "コピー2", "コピー3"]}},
+    {{"label": "結果・変化型", "candidates": ["コピー1", "コピー2", "コピー3"]}},
+    {{"label": "共感・感情型", "candidates": ["コピー1", "コピー2"]}},
+    {{"label": "信頼・実績型", "candidates": ["コピー1", "コピー2"]}},
+    {{"label": "問いかけ型", "candidates": ["コピー1", "コピー2"]}}
+  ]
+}}"""
 
         message = client.messages.create(
             model="claude-sonnet-4-6",
-            max_tokens=512,
+            max_tokens=1024,
             system=SYSTEM_PROMPT,
             messages=[{"role": "user", "content": prompt}],
         )
@@ -99,7 +114,7 @@ JSONのみ出力してください。
             raw = raw.split("```")[1].split("```")[0].strip()
 
         data = json.loads(raw)
-        return {"success": True, "candidates": data.get("catchcopy_candidates", [])}
+        return {"success": True, "categories": data.get("categories", [])}
     except HTTPException:
         raise
     except Exception as e:

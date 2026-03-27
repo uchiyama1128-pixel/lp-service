@@ -139,11 +139,13 @@
   .btn-download { display: inline-block; padding: 16px 32px; background: var(--primary); color: #fff; border-radius: 8px; font-size: 16px; font-weight: 700; text-decoration: none; }
 
   /* キャッチコピー候補 */
-  .catchcopy-option { border: 2px solid var(--border); border-radius: 10px; padding: 18px 20px; margin-bottom: 10px; cursor: pointer; transition: border-color .2s, background .2s; display: flex; align-items: center; gap: 14px; }
+  .catchcopy-category { margin-bottom: 24px; }
+  .catchcopy-category-label { font-size: 12px; font-weight: 700; color: var(--primary); background: #eef3ff; display: inline-block; padding: 4px 12px; border-radius: 20px; margin-bottom: 10px; }
+  .catchcopy-option { border: 2px solid var(--border); border-radius: 10px; padding: 18px 20px; margin-bottom: 8px; cursor: pointer; transition: border-color .2s, background .2s; display: flex; align-items: center; gap: 14px; }
   .catchcopy-option:hover { border-color: var(--primary); background: #f5f8ff; }
   .catchcopy-option.selected { border-color: var(--primary); background: #eef3ff; }
   .catchcopy-option input[type=radio] { width: 18px; height: 18px; accent-color: var(--primary); flex-shrink: 0; }
-  .catchcopy-option .copy-text { font-size: 17px; font-weight: 700; }
+  .catchcopy-option .copy-text { font-size: 16px; font-weight: 700; }
   .catchcopy-option .copy-num { font-size: 11px; color: var(--muted); min-width: 40px; }
 
   /* ローディング */
@@ -896,24 +898,31 @@ async function generateCatchcopy() {
     const data = await res.json();
     if (!data.success) throw new Error('生成に失敗しました');
 
-    // カードを描画
+    // カテゴリ別にカードを描画
     const container = document.getElementById('catchcopy-cards');
     container.innerHTML = '';
-    data.candidates.forEach((text, i) => {
-      const div = document.createElement('div');
-      div.className = 'catchcopy-option';
-      div.innerHTML = `
-        <input type="radio" name="catchcopy" value="${text}" id="cc${i}">
-        <label for="cc${i}" style="display:flex;align-items:center;gap:14px;cursor:pointer;flex:1;">
-          <span class="copy-num">候補 ${i+1}</span>
-          <span class="copy-text">${text}</span>
-        </label>`;
-      div.addEventListener('click', () => {
-        div.querySelector('input').checked = true;
-        document.querySelectorAll('.catchcopy-option').forEach(o => o.classList.remove('selected'));
-        div.classList.add('selected');
+    let globalIdx = 0;
+    data.categories.forEach(cat => {
+      const catDiv = document.createElement('div');
+      catDiv.className = 'catchcopy-category';
+      catDiv.innerHTML = `<div class="catchcopy-category-label">${cat.label}</div>`;
+      cat.candidates.forEach(text => {
+        const i = globalIdx++;
+        const div = document.createElement('div');
+        div.className = 'catchcopy-option';
+        div.innerHTML = `
+          <input type="radio" name="catchcopy" value="${text}" id="cc${i}">
+          <label for="cc${i}" style="display:flex;align-items:center;gap:14px;cursor:pointer;flex:1;">
+            <span class="copy-text">${text}</span>
+          </label>`;
+        div.addEventListener('click', () => {
+          div.querySelector('input').checked = true;
+          document.querySelectorAll('.catchcopy-option').forEach(o => o.classList.remove('selected'));
+          div.classList.add('selected');
+        });
+        catDiv.appendChild(div);
       });
-      container.appendChild(div);
+      container.appendChild(catDiv);
     });
 
     document.getElementById('loading').style.display = 'none';
