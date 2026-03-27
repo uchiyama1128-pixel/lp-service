@@ -565,10 +565,9 @@
 <!-- 完了 -->
 <div id="done">
   <div class="check">✅</div>
-  <h2>ご回答ありがとうございました！</h2>
-  <p>内容を確認のうえ、<strong>48時間以内にLPをお送りいたします。</strong><br>しばらくお待ちください。</p>
-  <div id="lp-url-wrap" style="display:none;margin-top:24px;background:#f0f4ff;border:1px solid #c0d0f0;border-radius:10px;padding:20px;">
-    <p style="font-size:13px;font-weight:700;margin-bottom:8px;">LPのURL</p>
+  <h2>LPが完成しました！</h2>
+  <div id="lp-url-wrap" style="margin-top:24px;background:#f0f4ff;border:1px solid #c0d0f0;border-radius:10px;padding:20px;">
+    <p style="font-size:13px;font-weight:700;margin-bottom:8px;">あなたのLPはこちらです</p>
     <a id="lp-url" href="#" target="_blank" style="font-size:15px;color:#2C4A7C;word-break:break-all;"></a>
   </div>
   <p style="font-size:12px;color:#aaa;margin-top:16px;">ご不明な点はLINEよりお問い合わせください</p>
@@ -967,12 +966,12 @@ async function submitForm() {
 
     document.getElementById('loading').style.display = 'none';
     document.getElementById('done').style.display = 'block';
+    const link = document.getElementById('lp-url');
     if (data.public_url) {
-      const wrap = document.getElementById('lp-url-wrap');
-      const link = document.getElementById('lp-url');
-      wrap.style.display = 'block';
       link.href = data.public_url;
       link.textContent = data.public_url;
+    } else {
+      link.textContent = '（URL取得に失敗しました。LINEよりお問い合わせください）';
     }
   } catch (e) {
     document.getElementById('loading').style.display = 'none';
