@@ -155,7 +155,7 @@ def build_lp_html(hearing: dict, copy: dict, embed_images: bool = False) -> str:
           <p class="coupon-offer">{coupon.get('offer','')}</p>
           {price_html}
           <p class="coupon-meta">{meta_items}</p>
-          {_cta_buttons()}
+          <a href="{line_url}" class="btn-cta-line">▶ {cta_button}</a>
           <p style="font-size:12px;color:#999;margin-top:10px;">{coupon.get('note','')}</p>
         </div>"""
 
