@@ -64,10 +64,15 @@ async def get_form():
 
 @app.post("/lp/catchcopy")
 async def generate_catchcopy(hearing: str = Form(...)):
-    hearing_dict: dict = json.loads(hearing)
-    client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+    try:
+        hearing_dict: dict = json.loads(hearing)
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+        if not api_key:
+            raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY が設定されていません")
 
-    prompt = f"""以下のヒアリングシートをもとに、LPのメインキャッチコピー候補を5つ生成してください。
+        client = anthropic.Anthropic(api_key=api_key)
+
+        prompt = f"""以下のヒアリングシートをもとに、LPのメインキャッチコピー候補を5つ生成してください。
 
 【ヒアリングシート】
 {json.dumps(hearing_dict, ensure_ascii=False, indent=2)}
@@ -81,20 +86,24 @@ async def generate_catchcopy(hearing: str = Form(...)):
 JSONのみ出力してください。
 {{"catchcopy_candidates": ["コピー1", "コピー2", "コピー3", "コピー4", "コピー5"]}}"""
 
-    message = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=512,
-        system=SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    raw = message.content[0].text.strip()
-    if "```json" in raw:
-        raw = raw.split("```json")[1].split("```")[0].strip()
-    elif "```" in raw:
-        raw = raw.split("```")[1].split("```")[0].strip()
+        message = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=512,
+            system=SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        raw = message.content[0].text.strip()
+        if "```json" in raw:
+            raw = raw.split("```json")[1].split("```")[0].strip()
+        elif "```" in raw:
+            raw = raw.split("```")[1].split("```")[0].strip()
 
-    data = json.loads(raw)
-    return {"success": True, "candidates": data.get("catchcopy_candidates", [])}
+        data = json.loads(raw)
+        return {"success": True, "candidates": data.get("catchcopy_candidates", [])}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/lp/generate")
