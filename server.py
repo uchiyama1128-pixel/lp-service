@@ -115,61 +115,67 @@ async def generate_lp(
     staff:     UploadFile = File(None),
     treatment: UploadFile = File(None),
 ):
-    hearing_dict: dict = json.loads(hearing)
-    shop_name = hearing_dict.get("shop_name", "shop")
-    url_slug  = hearing_dict.get("url_slug", "").strip() or shop_name
-
-    # 住所からマップURL自動生成
-    address = hearing_dict.get("address", "")
-    if address and not hearing_dict.get("map_embed_url"):
-        query = urllib.parse.quote(f"{shop_name} {address}")
-        hearing_dict["map_embed_url"] = f"https://maps.google.com/maps?q={query}&output=embed&z=16"
-
-    # 写真の一時保存
-    photo_dir = PHOTOS_DIR / shop_name
-    photo_dir.mkdir(parents=True, exist_ok=True)
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-
-    photos = {}
-    for field_name, upload in [
-        ("hero", hero), ("exterior", exterior),
-        ("interior", interior), ("staff", staff), ("treatment", treatment),
-    ]:
-        if upload and upload.filename:
-            suffix = Path(upload.filename).suffix or ".jpg"
-            dest = photo_dir / f"{field_name}{suffix}"
-            with dest.open("wb") as f:
-                shutil.copyfileobj(upload.file, f)
-            photos[field_name] = str(dest)
-
-    hearing_dict["photos"] = photos
-
-    # コピー生成
-    copy = generate_lp_copy(hearing_dict)
-
-    # HTML生成（画像base64埋め込み）
-    html = build_lp_html(hearing_dict, copy, embed_images=True)
-
-    # FTPデプロイ
-    public_url = ""
-    ftp_error = ""
     try:
-        public_url = _ftp_deploy(html, url_slug)
+        hearing_dict: dict = json.loads(hearing)
+        shop_name = hearing_dict.get("shop_name", "shop")
+        url_slug  = hearing_dict.get("url_slug", "").strip() or shop_name
+
+        # 住所からマップURL自動生成
+        address = hearing_dict.get("address", "")
+        if address and not hearing_dict.get("map_embed_url"):
+            query = urllib.parse.quote(f"{shop_name} {address}")
+            hearing_dict["map_embed_url"] = f"https://maps.google.com/maps?q={query}&output=embed&z=16"
+
+        # 写真の一時保存
+        photo_dir = PHOTOS_DIR / shop_name
+        photo_dir.mkdir(parents=True, exist_ok=True)
+        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+        photos = {}
+        for field_name, upload in [
+            ("hero", hero), ("exterior", exterior),
+            ("interior", interior), ("staff", staff), ("treatment", treatment),
+        ]:
+            if upload and upload.filename:
+                suffix = Path(upload.filename).suffix or ".jpg"
+                dest = photo_dir / f"{field_name}{suffix}"
+                with dest.open("wb") as f:
+                    shutil.copyfileobj(upload.file, f)
+                photos[field_name] = str(dest)
+
+        hearing_dict["photos"] = photos
+
+        # コピー生成
+        copy = generate_lp_copy(hearing_dict)
+
+        # HTML生成（画像base64埋め込み）
+        html = build_lp_html(hearing_dict, copy, embed_images=True)
+
+        # FTPデプロイ
+        public_url = ""
+        ftp_error = ""
+        try:
+            public_url = _ftp_deploy(html, url_slug)
+        except Exception as e:
+            ftp_error = str(e)
+            print(f"⚠️ FTPデプロイ失敗: {e}")
+
+        # 一時ファイルを削除
+        try:
+            shutil.rmtree(photo_dir)
+        except Exception:
+            pass
+
+        return {
+            "success": True,
+            "public_url": public_url,
+            "ftp_error": ftp_error,
+        }
+    except HTTPException:
+        raise
     except Exception as e:
-        ftp_error = str(e)
-        print(f"⚠️ FTPデプロイ失敗: {e}")
-
-    # 一時ファイルを削除
-    try:
-        shutil.rmtree(photo_dir)
-    except Exception:
-        pass
-
-    return {
-        "success": True,
-        "public_url": public_url,
-        "ftp_error": ftp_error,
-    }
+        import traceback
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}\n{traceback.format_exc()}")
 
 
 if __name__ == "__main__":
