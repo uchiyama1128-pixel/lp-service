@@ -152,9 +152,11 @@ async def generate_lp(
 
     # FTPデプロイ
     public_url = ""
+    ftp_error = ""
     try:
         public_url = _ftp_deploy(html, url_slug)
     except Exception as e:
+        ftp_error = str(e)
         print(f"⚠️ FTPデプロイ失敗: {e}")
 
     # 一時ファイルを削除
@@ -166,6 +168,7 @@ async def generate_lp(
     return {
         "success": True,
         "public_url": public_url,
+        "ftp_error": ftp_error,
     }
 
 
