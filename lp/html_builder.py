@@ -684,7 +684,7 @@ def build_lp_html(hearing: dict, copy: dict, embed_images: bool = False) -> str:
     {f'''<div style="background:rgba(255,255,255,0.1);border:1px dashed rgba(255,255,255,0.4);border-radius:10px;padding:16px 24px;margin-bottom:24px;display:inline-block;">
       <p style="font-size:13px;color:rgba(255,255,255,0.7);margin-bottom:4px;">{coupon.get("title","初回限定クーポン")}</p>
       <p style="font-size:20px;font-weight:900;color:#fff;">{coupon.get("offer","")}</p>
-      <p style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:4px;">{coupon.get("deadline","")} / {coupon.get("limit","")}</p>
+      {f\'<p style="font-size:14px;color:rgba(255,255,255,0.8);margin-top:8px;"><s style="opacity:.6;">{coupon["original_price"]}</s> → <span style="font-size:20px;font-weight:900;">{coupon["coupon_price"]}</span></p>\' if coupon.get("original_price") and coupon.get("coupon_price") else ""}
     </div>''' if coupon else ''}
     <div class="cta-btns">
       <a href="{line_url}" class="cta-btn-line">▶ {cta_button}</a>
