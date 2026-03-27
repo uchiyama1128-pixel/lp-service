@@ -642,7 +642,7 @@ def build_lp_html(hearing: dict, copy: dict, embed_images: bool = False) -> str:
   <!-- スタッフ・院長あいさつ -->
   {f'''
   <div class="section">
-    <h2 class="section-title">院長・スタッフのご紹介</h2>
+    <h2 class="section-title">院長からのメッセージ</h2>
     <div class="staff-wrap">
       {staff_html}
       <div class="staff-text">
