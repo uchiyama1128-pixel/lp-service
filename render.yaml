@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: lp-service
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn server:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: XSERVER_FTP_HOST
+        value: sv14371.xserver.jp
+      - key: XSERVER_FTP_USER
+        value: lp-deploy@visionroom.jp
+      - key: XSERVER_FTP_PASS
+        sync: false
+      - key: XSERVER_BASE_URL
+        value: https://visionroom.jp/lp/

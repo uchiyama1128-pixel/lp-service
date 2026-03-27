@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LP制作ヒアリングシート</title>
+<style>
+  :root {
+    --primary: #2C4A7C;
+    --accent:  #f67f37;
+    --bg:      #f5f7fa;
+    --card:    #ffffff;
+    --text:    #333;
+    --muted:   #888;
+    --border:  #dde3ec;
+    --radius:  10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Hiragino Sans", "Noto Sans JP", sans-serif; background: var(--bg); color: var(--text); }
+
+  /* ヘッダー */
+  .header { background: var(--primary); color: #fff; padding: 18px 24px; }
+  .header h1 { font-size: 18px; font-weight: 700; }
+  .header p  { font-size: 12px; opacity: .7; margin-top: 4px; }
+
+  /* プログレスバー */
+  .progress-wrap { background: #fff; border-bottom: 1px solid var(--border); padding: 16px 24px; }
+  .progress-labels { display: flex; justify-content: space-between; margin-bottom: 8px; }
+  .progress-labels span { font-size: 11px; color: var(--muted); }
+  .progress-labels span.active { color: var(--primary); font-weight: 700; }
+  .progress-bar { height: 6px; background: #e0e6f0; border-radius: 99px; overflow: hidden; }
+  .progress-bar-fill { height: 100%; background: var(--primary); border-radius: 99px; transition: width .3s; }
+
+  /* メイン */
+  .main { max-width: 680px; margin: 0 auto; padding: 32px 16px 80px; }
+
+  /* ステップカード */
+  .step { display: none; }
+  .step.active { display: block; }
+
+  .step-header { margin-bottom: 24px; }
+  .step-header .step-num { font-size: 12px; color: var(--primary); font-weight: 700; letter-spacing: .1em; }
+  .step-header h2 { font-size: 22px; font-weight: 900; margin-top: 4px; }
+  .step-header p  { font-size: 14px; color: var(--muted); margin-top: 6px; }
+
+  .card { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); padding: 24px; margin-bottom: 16px; }
+
+  /* フォーム部品 */
+  label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+  label .req { color: var(--accent); margin-left: 4px; }
+  label .hint { font-weight: 400; color: var(--muted); font-size: 12px; margin-left: 6px; }
+  input[type=text], input[type=url], input[type=tel], textarea, select {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px;
+    font-size: 14px; font-family: inherit; background: #fafbfc;
+    transition: border-color .2s;
+  }
+  input:focus, textarea:focus, select:focus { outline: none; border-color: var(--primary); }
+  textarea { resize: vertical; min-height: 80px; }
+  .field { margin-bottom: 18px; }
+  .field:last-child { margin-bottom: 0; }
+  .hint-text { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  /* 例示トグル */
+  .example-toggle { font-size: 12px; color: var(--primary); cursor: pointer; margin-top: 4px; display: inline-block; }
+  .example-list { display: none; background: #f0f4ff; border-radius: 6px; padding: 10px 14px; margin-top: 6px; font-size: 13px; line-height: 2; }
+  .example-list.open { display: block; }
+
+  /* 繰り返し入力 */
+  .repeat-item { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 10px; }
+  .repeat-item input { flex: 1; }
+  .btn-remove { background: none; border: 1px solid #ddd; border-radius: 6px; padding: 8px 10px; cursor: pointer; color: #aaa; font-size: 14px; flex-shrink: 0; }
+  .btn-remove:hover { border-color: #e55; color: #e55; }
+  .btn-add { background: none; border: 1px dashed var(--primary); color: var(--primary); border-radius: 6px; padding: 8px 14px; cursor: pointer; font-size: 13px; margin-top: 4px; width: 100%; }
+  .btn-add:hover { background: #f0f4ff; }
+
+  /* メニュー行 */
+  .menu-row { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .menu-row input { margin: 0; }
+  @media(max-width:500px) { .menu-row { grid-template-columns: 1fr 1fr; } .menu-row .btn-remove { display: none; } }
+
+  /* カラーテーマ */
+  .color-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .color-option { border: 2px solid var(--border); border-radius: 8px; padding: 10px; cursor: pointer; text-align: center; transition: border-color .2s; }
+  .color-option:hover { border-color: #aab; }
+  .color-option.selected { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(44,74,124,.2); }
+  .color-swatch { width: 100%; height: 32px; border-radius: 4px; margin-bottom: 6px; }
+  .color-option span { font-size: 11px; color: var(--text); }
+  .color-option small { display: block; font-size: 10px; color: var(--muted); }
+
+  /* FAQ */
+  .faq-item { border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 10px; }
+  .faq-top { display: flex; align-items: flex-start; gap: 10px; }
+  .faq-top input[type=checkbox] { margin-top: 3px; flex-shrink: 0; width: 16px; height: 16px; accent-color: var(--primary); }
+  .faq-q { font-size: 14px; font-weight: 600; }
+  .faq-answer { margin-top: 10px; display: none; }
+  .faq-answer.open { display: block; }
+
+  /* お客様の声 */
+  .voice-type { display: flex; gap: 12px; margin-bottom: 16px; }
+  .voice-type label { display: flex; align-items: center; gap: 6px; font-weight: 400; cursor: pointer; }
+  .voice-item { border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 10px; }
+  .voice-row { display: grid; grid-template-columns: 140px 1fr; gap: 10px; }
+  @media(max-width:500px) { .voice-row { grid-template-columns: 1fr; } }
+
+  /* 写真アップロード */
+  .photo-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  @media(max-width:500px) { .photo-grid { grid-template-columns: 1fr; } }
+  .photo-item label { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+  .photo-drop { border: 2px dashed var(--border); border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; transition: border-color .2s; position: relative; background: #fafbfc; }
+  .photo-drop:hover { border-color: var(--primary); }
+  .photo-drop input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .photo-drop .icon { font-size: 24px; margin-bottom: 6px; }
+  .photo-drop .label { font-size: 12px; color: var(--muted); }
+  .photo-drop .req-badge { font-size: 10px; background: var(--accent); color: #fff; padding: 1px 6px; border-radius: 99px; }
+  .photo-preview { width: 100%; height: 100px; object-fit: cover; border-radius: 6px; display: none; }
+
+  /* 注意書きバナー */
+  .notice { background: #fff8f0; border: 1px solid #ffd4a3; border-radius: 8px; padding: 14px 16px; font-size: 13px; line-height: 1.7; margin-bottom: 16px; }
+  .notice strong { color: var(--accent); }
+
+  /* ラジオ/セレクト */
+  .radio-group { display: flex; gap: 16px; flex-wrap: wrap; }
+  .radio-group label { display: flex; align-items: center; gap: 6px; font-weight: 400; cursor: pointer; }
+
+  /* ナビゲーションボタン */
+  .nav-buttons { display: flex; gap: 12px; margin-top: 32px; }
+  .btn-back { flex: 1; padding: 14px; border: 1px solid var(--border); background: #fff; border-radius: 8px; font-size: 15px; cursor: pointer; color: var(--text); }
+  .btn-back:hover { background: #f5f5f5; }
+  .btn-next { flex: 2; padding: 14px; background: var(--primary); color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; }
+  .btn-next:hover { background: #1e3660; }
+  .btn-submit { flex: 2; padding: 14px; background: var(--accent); color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; }
+  .btn-submit:hover { background: #e06020; }
+
+  /* 完了画面 */
+  #done { display: none; text-align: center; padding: 60px 20px; }
+  #done .check { font-size: 64px; margin-bottom: 20px; }
+  #done h2 { font-size: 24px; font-weight: 900; margin-bottom: 12px; }
+  #done p { font-size: 15px; color: var(--muted); margin-bottom: 24px; }
+  .btn-download { display: inline-block; padding: 16px 32px; background: var(--primary); color: #fff; border-radius: 8px; font-size: 16px; font-weight: 700; text-decoration: none; }
+
+  /* キャッチコピー候補 */
+  .catchcopy-option { border: 2px solid var(--border); border-radius: 10px; padding: 18px 20px; margin-bottom: 10px; cursor: pointer; transition: border-color .2s, background .2s; display: flex; align-items: center; gap: 14px; }
+  .catchcopy-option:hover { border-color: var(--primary); background: #f5f8ff; }
+  .catchcopy-option.selected { border-color: var(--primary); background: #eef3ff; }
+  .catchcopy-option input[type=radio] { width: 18px; height: 18px; accent-color: var(--primary); flex-shrink: 0; }
+  .catchcopy-option .copy-text { font-size: 17px; font-weight: 700; }
+  .catchcopy-option .copy-num { font-size: 11px; color: var(--muted); min-width: 40px; }
+
+  /* ローディング */
+  #loading { display: none; text-align: center; padding: 60px 20px; }
+  .spinner { width: 48px; height: 48px; border: 4px solid #e0e6f0; border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>LP制作ヒアリングシート</h1>
+  <p>所要時間の目安：約20〜25分</p>
+</div>
+
+<div class="progress-wrap">
+  <div class="progress-labels">
+    <span id="pl1" class="active">STEP1 基本情報</span>
+    <span id="pl2">STEP2 メニュー</span>
+    <span id="pl3">STEP3 強み・院長</span>
+    <span id="pl4">STEP4 実績・FAQ</span>
+    <span id="pl5">STEP5 写真</span>
+    <span id="pl6">STEP6 コピー選択</span>
+  </div>
+  <div class="progress-bar"><div class="progress-bar-fill" id="progress-fill" style="width:20%"></div></div>
+</div>
+
+<div class="main">
+
+  <!-- ===== STEP 1 ===== -->
+  <div class="step active" id="step1">
+    <div class="step-header">
+      <div class="step-num">STEP 1 / 5</div>
+      <h2>基本情報</h2>
+      <p>お店の基本情報を入力してください</p>
+    </div>
+
+    <div class="card">
+      <div class="field">
+        <label>院名・店名<span class="req">*</span></label>
+        <input type="text" id="shop_name" placeholder="例：からだ整体院">
+      </div>
+      <div class="field">
+        <label>URL用スラッグ<span class="req">*</span><span class="hint">英数字・ハイフンのみ（公開URLに使用）</span></label>
+        <input type="text" id="url_slug" placeholder="例：karada-seitai" pattern="[a-z0-9\-]+" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9\-]/g,'')">
+        <div class="hint-text" id="url-preview"></div>
+      </div>
+      <div class="field">
+        <label>業種<span class="req">*</span></label>
+        <select id="shop_type">
+          <option value="">選択してください</option>
+          <option value="整体院">整体院</option>
+          <option value="鍼灸院">鍼灸院</option>
+          <option value="整骨院">整骨院</option>
+          <option value="エステサロン">エステサロン</option>
+          <option value="リラクゼーションサロン">リラクゼーションサロン</option>
+          <option value="美容室">美容室</option>
+          <option value="ネイルサロン">ネイルサロン</option>
+          <option value="その他">その他</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>エリア<span class="req">*</span><span class="hint">都道府県＋市区町村</span></label>
+        <input type="text" id="location" placeholder="例：大阪市北区">
+      </div>
+      <div class="field">
+        <label>営業時間・定休日</label>
+        <input type="text" id="business_hours" placeholder="例：10:00〜20:00（火曜定休）">
+      </div>
+      <div class="field">
+        <label>電話番号</label>
+        <input type="tel" id="phone" placeholder="例：06-1234-5678">
+      </div>
+      <div class="field">
+        <label>LINE公式アカウントURL<span class="req">*</span></label>
+        <input type="url" id="line_url" placeholder="例：https://lin.ee/xxxxxxx">
+      </div>
+      <div class="field">
+        <label>予約フォームURL<span class="hint">お持ちの場合</span></label>
+        <input type="url" id="booking_url" placeholder="例：https://coubic.com/...">
+      </div>
+      <div class="field">
+        <label>CTAボタンのリンク先<span class="req">*</span><span class="hint">すべて選択してください（複数選択可）</span></label>
+        <div class="radio-group">
+          <label><input type="checkbox" name="cta_type" value="line" checked> LINE登録</label>
+          <label><input type="checkbox" name="cta_type" value="booking"> 予約フォーム</label>
+          <label><input type="checkbox" name="cta_type" value="phone"> 電話</label>
+        </div>
+      </div>
+      <div class="field">
+        <label>住所<span class="req">*</span><span class="hint">Googleマップへの表示に使います</span></label>
+        <input type="text" id="address" placeholder="例：大阪府大阪市北区梅田1-1-1 ○○ビル2F">
+      </div>
+    </div>
+
+    <div class="card">
+      <label>カラーテーマを選んでください<span class="req">*</span></label>
+      <div class="color-grid" id="color-grid">
+        <div class="color-option selected" data-value="natural_green">
+          <div class="color-swatch" style="background:#4A7C59"></div>
+          <span>ナチュラルグリーン</span>
+          <small>癒し・安心</small>
+        </div>
+        <div class="color-option" data-value="trust_navy">
+          <div class="color-swatch" style="background:#2C4A7C"></div>
+          <span>トラストネイビー</span>
+          <small>信頼・専門性</small>
+        </div>
+        <div class="color-option" data-value="warm_beige">
+          <div class="color-swatch" style="background:#C4956A"></div>
+          <span>ウォームベージュ</span>
+          <small>上品・女性向け</small>
+        </div>
+        <div class="color-option" data-value="clear_sky">
+          <div class="color-swatch" style="background:#4A90C4"></div>
+          <span>クリアスカイ</span>
+          <small>清潔・爽やか</small>
+        </div>
+        <div class="color-option" data-value="elegant_rose">
+          <div class="color-swatch" style="background:#C4607A"></div>
+          <span>エレガントローズ</span>
+          <small>華やか・高級感</small>
+        </div>
+        <div class="color-option" data-value="deep_brown">
+          <div class="color-swatch" style="background:#6B4C3B"></div>
+          <span>ディープブラウン</span>
+          <small>落ち着き・職人感</small>
+        </div>
+      </div>
+      <input type="hidden" id="color_theme" value="natural_green">
+    </div>
+
+    <div class="nav-buttons">
+      <button class="btn-next" onclick="goNext(1)">次へ →</button>
+    </div>
+  </div>
+
+  <!-- ===== STEP 2 ===== -->
+  <div class="step" id="step2">
+    <div class="step-header">
+      <div class="step-num">STEP 2 / 5</div>
+      <h2>メニュー・料金・クーポン</h2>
+    </div>
+
+    <div class="card">
+      <label>メニュー一覧<span class="req">*</span><span class="hint">最大5つ</span></label>
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px;margin-bottom:6px;">
+        <span style="font-size:11px;color:#aaa;">メニュー名</span>
+        <span style="font-size:11px;color:#aaa;">料金</span>
+        <span style="font-size:11px;color:#aaa;">時間</span>
+        <span></span>
+      </div>
+      <div id="menu-list">
+        <div class="menu-row">
+          <input type="text" placeholder="全身整体コース">
+          <input type="text" placeholder="6,600円">
+          <input type="text" placeholder="60分">
+          <button class="btn-remove" onclick="removeMenu(this)">✕</button>
+        </div>
+      </div>
+      <button class="btn-add" onclick="addMenu()" id="btn-add-menu">＋ メニューを追加</button>
+    </div>
+
+    <div class="card">
+      <div class="notice">
+        <strong>💡 初回クーポンのご用意が集客に直結します。</strong><br>
+        LINEでクーポンを受け取れる仕組みにより、友だち追加→来店の導線が自然に作れます。<br>
+        必ず初回クーポンをご用意ください。
+      </div>
+      <div class="field">
+        <label>クーポン名<span class="req">*</span></label>
+        <input type="text" id="coupon_title" placeholder="例：初回体験コース 50%OFF">
+      </div>
+      <div class="field">
+        <label>対象メニュー</label>
+        <input type="text" id="coupon_offer" placeholder="例：初回体験コース">
+      </div>
+      <div class="field" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <label>通常価格<span class="req">*</span></label>
+          <input type="text" id="coupon_original_price" placeholder="例：6,600円">
+        </div>
+        <div>
+          <label>クーポン価格<span class="req">*</span></label>
+          <input type="text" id="coupon_price" placeholder="例：3,300円">
+        </div>
+      </div>
+      <div id="coupon-discount" class="hint-text" style="margin-top:-10px;margin-bottom:12px;"></div>
+    </div>
+
+    <div class="nav-buttons">
+      <button class="btn-back" onclick="goBack(2)">← 戻る</button>
+      <button class="btn-next" onclick="goNext(2)">次へ →</button>
+    </div>
+  </div>
+
+  <!-- ===== STEP 3 ===== -->
+  <div class="step" id="step3">
+    <div class="step-header">
+      <div class="step-num">STEP 3 / 5</div>
+      <h2>ターゲット・強み・院長メッセージ</h2>
+    </div>
+
+    <div class="card">
+      <div class="field">
+        <label>もっとも多く来院されるお客様のプロフィール<span class="req">*</span></label>
+        <input type="text" id="target" placeholder="例：30〜50代の腰痛・肩こりに悩む会社員・主婦">
+      </div>
+      <div class="field">
+        <label>お客様がよく抱えている悩み<span class="req">*</span><span class="hint">最大3つ</span></label>
+        <div id="problems-list">
+          <div class="repeat-item"><input type="text" placeholder="例：マッサージに通っても翌日にはまた痛くなる"><button class="btn-remove" onclick="removeItem(this)">✕</button></div>
+          <div class="repeat-item"><input type="text" placeholder="例：長年の腰痛・肩こりが改善しない"><button class="btn-remove" onclick="removeItem(this)">✕</button></div>
+        </div>
+        <button class="btn-add" onclick="addItem('problems-list', '悩みを追加', 3)">＋ 悩みを追加</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <label>他院と比べた強み・こだわり<span class="req">*</span><span class="hint">最大5つ</span></label>
+      <span class="example-toggle" onclick="toggleExample('ex-strengths')">▶ 入力例を見る</span>
+      <div class="example-list" id="ex-strengths">
+        ・国家資格保持者が施術している<br>
+        ・完全個室・完全予約制で他の人の目が気にならない<br>
+        ・痛みの原因から根本改善するアプローチをしている<br>
+        ・開院◯年、地域密着で◯◯人以上の施術実績<br>
+        ・女性施術者在籍、女性のお客様も安心<br>
+        ・駐車場完備でアクセスしやすい<br>
+        ・当日予約OK・夜◯時まで営業<br>
+        ・子ども連れOK、ベビーカーのまま入れる<br>
+        ・LINEで気軽に相談・予約できる
+      </div>
+      <div id="strengths-list" style="margin-top:10px;">
+        <div class="repeat-item"><input type="text" placeholder="強み1"><button class="btn-remove" onclick="removeItem(this)">✕</button></div>
+        <div class="repeat-item"><input type="text" placeholder="強み2"><button class="btn-remove" onclick="removeItem(this)">✕</button></div>
+        <div class="repeat-item"><input type="text" placeholder="強み3"><button class="btn-remove" onclick="removeItem(this)">✕</button></div>
+      </div>
+      <button class="btn-add" onclick="addItem('strengths-list', '強みを追加', 5)">＋ 強みを追加</button>
+    </div>
+
+    <div class="card">
+      <div class="field">
+        <label>院長・オーナーのお名前<span class="hint">表示名</span></label>
+        <input type="text" id="owner_name" placeholder="例：田中 太郎">
+      </div>
+      <div class="field">
+        <label>資格・経歴<span class="hint">任意</span></label>
+        <input type="text" id="owner_qualifications" placeholder="例：柔道整復師歴15年、元スポーツトレーナー">
+      </div>
+      <div class="field">
+        <label>院長からのメッセージ</label>
+        <div class="hint-text" style="margin-bottom:6px;">入力が難しい場合はAIで自動作成できます</div>
+        <div class="radio-group" style="margin-bottom:10px;">
+          <label><input type="radio" name="owner_msg_type" value="input" checked onchange="toggleOwnerMsg(this)"> 自分で入力する</label>
+          <label><input type="radio" name="owner_msg_type" value="ai" onchange="toggleOwnerMsg(this)"> AIで作成する</label>
+        </div>
+        <textarea id="owner_message" rows="4" placeholder="痛みを我慢しながら毎日を過ごしていませんか？当院では...（100〜200文字程度）"></textarea>
+      </div>
+    </div>
+
+    <div class="nav-buttons">
+      <button class="btn-back" onclick="goBack(3)">← 戻る</button>
+      <button class="btn-next" onclick="goNext(3)">次へ →</button>
+    </div>
+  </div>
+
+  <!-- ===== STEP 4 ===== -->
+  <div class="step" id="step4">
+    <div class="step-header">
+      <div class="step-num">STEP 4 / 5</div>
+      <h2>実績・お客様の声・FAQ</h2>
+    </div>
+
+    <div class="card">
+      <label>数字で示せる実績<span class="hint">最大3つ。なければ空欄OK</span></label>
+      <span class="example-toggle" onclick="toggleExample('ex-achievements')">▶ 入力例を見る</span>
+      <div class="example-list" id="ex-achievements">
+        ・お客様満足度98%（自社アンケート）<br>
+        ・リピート率82%<br>
+        ・口コミ平均評価4.8（Googleマップ）<br>
+        ・開院◯年、累計◯◯◯◯名以上の施術実績
+      </div>
+      <div id="achievements-list" style="margin-top:10px;">
+        <div class="repeat-item"><input type="text" placeholder="例：お客様満足度98%（自社アンケート）"><button class="btn-remove" onclick="removeItem(this)">✕</button></div>
+      </div>
+      <button class="btn-add" onclick="addItem('achievements-list', '実績を追加', 3)">＋ 実績を追加</button>
+    </div>
+
+    <div class="card">
+      <label>お客様の声</label>
+      <div class="voice-type">
+        <label><input type="radio" name="voice_type" value="input" checked onchange="toggleVoice(this)"> 入力する（最大3件）</label>
+        <label><input type="radio" name="voice_type" value="ai" onchange="toggleVoice(this)"> AIで作成する</label>
+      </div>
+      <div id="voice-input">
+        <div class="voice-item">
+          <div class="voice-row">
+            <input type="text" placeholder="属性（例：40代・女性）">
+            <textarea rows="3" placeholder="お客様のコメントをそのまま入力してください"></textarea>
+          </div>
+        </div>
+        <div class="voice-item">
+          <div class="voice-row">
+            <input type="text" placeholder="属性（例：50代・男性）">
+            <textarea rows="3" placeholder="お客様のコメントをそのまま入力してください"></textarea>
+          </div>
+        </div>
+        <button class="btn-add" onclick="addVoice()">＋ 追加（最大3件）</button>
+      </div>
+      <div id="voice-ai" style="display:none;">
+        <div class="hint-text">ヒアリング内容をもとに自然な口語体で3件作成します。</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <label>よくある質問<span class="hint">LPに掲載するQにチェックして回答を入力してください</span></label>
+      <div id="faq-list">
+        <!-- 整体院デフォルトFAQ -->
+      </div>
+      <div class="field" style="margin-top:16px;">
+        <label>独自のQ&Aを追加する<span class="hint">任意</span></label>
+        <div id="custom-faq-list"></div>
+        <button class="btn-add" onclick="addCustomFaq()">＋ Q&Aを追加</button>
+      </div>
+    </div>
+
+    <div class="nav-buttons">
+      <button class="btn-back" onclick="goBack(4)">← 戻る</button>
+      <button class="btn-next" onclick="goNext(4)">次へ →</button>
+    </div>
+  </div>
+
+  <!-- ===== STEP 5 ===== -->
+  <div class="step" id="step5">
+    <div class="step-header">
+      <div class="step-num">STEP 5 / 5</div>
+      <h2>写真のアップロード</h2>
+      <p>メイン写真は必須です。その他は任意ですが、多いほどLPの完成度が上がります</p>
+    </div>
+
+    <div class="card">
+      <div class="photo-grid">
+        <div class="photo-item">
+          <label>メイン写真（ヒーロー）<span class="req">*</span></label>
+          <div class="photo-drop" onclick="triggerFile('file-hero')">
+            <input type="file" id="file-hero" accept="image/*" onchange="previewPhoto(this,'prev-hero')">
+            <img id="prev-hero" class="photo-preview">
+            <div id="ph-hero"><div class="icon">🏥</div><div class="label">タップして選択</div><div style="margin-top:4px"><span class="req-badge">必須</span></div></div>
+          </div>
+        </div>
+        <div class="photo-item">
+          <label>外観写真</label>
+          <div class="photo-drop" onclick="triggerFile('file-exterior')">
+            <input type="file" id="file-exterior" accept="image/*" onchange="previewPhoto(this,'prev-exterior')">
+            <img id="prev-exterior" class="photo-preview">
+            <div id="ph-exterior"><div class="icon">🚪</div><div class="label">タップして選択</div></div>
+          </div>
+        </div>
+        <div class="photo-item">
+          <label>院内写真</label>
+          <div class="photo-drop" onclick="triggerFile('file-interior')">
+            <input type="file" id="file-interior" accept="image/*" onchange="previewPhoto(this,'prev-interior')">
+            <img id="prev-interior" class="photo-preview">
+            <div id="ph-interior"><div class="icon">🛋️</div><div class="label">タップして選択</div></div>
+          </div>
+        </div>
+        <div class="photo-item">
+          <label>スタッフ・院長写真</label>
+          <div class="photo-drop" onclick="triggerFile('file-staff')">
+            <input type="file" id="file-staff" accept="image/*" onchange="previewPhoto(this,'prev-staff')">
+            <img id="prev-staff" class="photo-preview">
+            <div id="ph-staff"><div class="icon">👨‍⚕️</div><div class="label">タップして選択</div></div>
+          </div>
+        </div>
+        <div class="photo-item">
+          <label>施術シーン</label>
+          <div class="photo-drop" onclick="triggerFile('file-treatment')">
+            <input type="file" id="file-treatment" accept="image/*" onchange="previewPhoto(this,'prev-treatment')">
+            <img id="prev-treatment" class="photo-preview">
+            <div id="ph-treatment"><div class="icon">🤲</div><div class="label">タップして選択</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="nav-buttons">
+      <button class="btn-back" onclick="goBack(5)">← 戻る</button>
+      <button class="btn-next" onclick="generateCatchcopy()">キャッチコピーを生成する →</button>
+    </div>
+  </div>
+
+  <!-- ===== STEP 6 ===== -->
+  <div class="step" id="step6">
+    <div class="step-header">
+      <div class="step-num">STEP 6 / 6</div>
+      <h2>キャッチコピーを選んでください</h2>
+      <p>AIが生成した候補からお好みのものを1つ選んでください</p>
+    </div>
+
+    <div class="card" id="catchcopy-cards">
+      <!-- JS で生成 -->
+    </div>
+
+    <div class="nav-buttons">
+      <button class="btn-back" onclick="goBack(6)">← 戻る</button>
+      <button class="btn-submit" onclick="submitForm()">LPを依頼する</button>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- ローディング -->
+<div id="loading">
+  <div class="spinner"></div>
+  <p style="font-size:16px;font-weight:700;">LPを生成しています...</p>
+  <p style="font-size:13px;color:#888;margin-top:8px;">AIがコピーを作成中です。1〜2分かかります</p>
+</div>
+
+<!-- 完了 -->
+<div id="done">
+  <div class="check">✅</div>
+  <h2>ご回答ありがとうございました！</h2>
+  <p>内容を確認のうえ、<strong>48時間以内にLPをお送りいたします。</strong><br>しばらくお待ちください。</p>
+  <div id="lp-url-wrap" style="display:none;margin-top:24px;background:#f0f4ff;border:1px solid #c0d0f0;border-radius:10px;padding:20px;">
+    <p style="font-size:13px;font-weight:700;margin-bottom:8px;">LPのURL</p>
+    <a id="lp-url" href="#" target="_blank" style="font-size:15px;color:#2C4A7C;word-break:break-all;"></a>
+  </div>
+  <p style="font-size:12px;color:#aaa;margin-top:16px;">ご不明な点はLINEよりお問い合わせください</p>
+</div>
+
+<script>
+// ===== URL プレビュー =====
+document.getElementById('url_slug').addEventListener('input', function() {
+  const preview = document.getElementById('url-preview');
+  preview.textContent = this.value ? `公開URL: https://visionroom.jp/lp/${this.value}/` : '';
+});
+
+// ===== デフォルトFAQ（整体院） =====
+const DEFAULT_FAQ = [
+  "初めてでも大丈夫ですか？",
+  "予約はどうすればいいですか？",
+  "何回通えばいいですか？",
+  "料金はいつ支払いますか？",
+  "駐車場はありますか？",
+  "子ども連れでも大丈夫ですか？",
+  "着替えは必要ですか？",
+  "施術中に痛みはありますか？",
+  "保険は使えますか？",
+  "キャンセルはどうすればいいですか？",
+];
+
+function buildFaqList() {
+  const container = document.getElementById('faq-list');
+  DEFAULT_FAQ.forEach((q, i) => {
+    const div = document.createElement('div');
+    div.className = 'faq-item';
+    div.innerHTML = `
+      <div class="faq-top">
+        <input type="checkbox" id="faq-cb-${i}" onchange="toggleFaqAnswer(${i})">
+        <label for="faq-cb-${i}" class="faq-q">${q}</label>
+      </div>
+      <div class="faq-answer" id="faq-ans-${i}">
+        <textarea rows="2" placeholder="回答を入力してください" style="margin-top:6px;"></textarea>
+      </div>`;
+    container.appendChild(div);
+  });
+}
+buildFaqList();
+
+function toggleFaqAnswer(i) {
+  const cb = document.getElementById(`faq-cb-${i}`);
+  const ans = document.getElementById(`faq-ans-${i}`);
+  ans.classList.toggle('open', cb.checked);
+}
+
+function addCustomFaq() {
+  const list = document.getElementById('custom-faq-list');
+  const div = document.createElement('div');
+  div.className = 'card' ;
+  div.style.marginBottom = '10px';
+  div.innerHTML = `
+    <div class="field"><label>Q</label><input type="text" placeholder="質問を入力"></div>
+    <div class="field"><label>A</label><textarea rows="2" placeholder="回答を入力"></textarea></div>
+    <button class="btn-remove" onclick="this.parentElement.remove()" style="width:100%;">削除</button>`;
+  list.appendChild(div);
+}
+
+// ===== カラーテーマ =====
+document.querySelectorAll('.color-option').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.color-option').forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected');
+    document.getElementById('color_theme').value = el.dataset.value;
+  });
+});
+
+// ===== メニュー =====
+function addMenu() {
+  const list = document.getElementById('menu-list');
+  if (list.children.length >= 5) return;
+  const div = document.createElement('div');
+  div.className = 'menu-row';
+  div.innerHTML = `
+    <input type="text" placeholder="メニュー名">
+    <input type="text" placeholder="料金">
+    <input type="text" placeholder="時間">
+    <button class="btn-remove" onclick="removeMenu(this)">✕</button>`;
+  list.appendChild(div);
+  if (list.children.length >= 5) document.getElementById('btn-add-menu').style.display = 'none';
+}
+function removeMenu(btn) {
+  btn.closest('.menu-row').remove();
+  document.getElementById('btn-add-menu').style.display = '';
+}
+
+// ===== 繰り返し入力 =====
+function addItem(listId, placeholder, max) {
+  const list = document.getElementById(listId);
+  if (list.children.length >= max) return;
+  const div = document.createElement('div');
+  div.className = 'repeat-item';
+  div.innerHTML = `<input type="text" placeholder="${placeholder}"><button class="btn-remove" onclick="removeItem(this)">✕</button>`;
+  list.appendChild(div);
+}
+function removeItem(btn) {
+  btn.closest('.repeat-item').remove();
+}
+
+// ===== お客様の声 =====
+function toggleVoice(radio) {
+  document.getElementById('voice-input').style.display = radio.value === 'input' ? '' : 'none';
+  document.getElementById('voice-ai').style.display    = radio.value === 'ai'    ? '' : 'none';
+}
+function addVoice() {
+  const container = document.getElementById('voice-input');
+  const items = container.querySelectorAll('.voice-item');
+  if (items.length >= 3) return;
+  const div = document.createElement('div');
+  div.className = 'voice-item';
+  div.innerHTML = `<div class="voice-row">
+    <input type="text" placeholder="属性（例：40代・女性）">
+    <textarea rows="3" placeholder="お客様のコメント"></textarea>
+  </div>`;
+  container.insertBefore(div, container.querySelector('.btn-add'));
+}
+
+// ===== 院長メッセージ =====
+function toggleOwnerMsg(radio) {
+  const ta = document.getElementById('owner_message');
+  if (radio.value === 'ai') {
+    ta.disabled = true;
+    ta.placeholder = 'AIがヒアリング内容をもとに自動作成します';
+    ta.value = '';
+  } else {
+    ta.disabled = false;
+    ta.placeholder = '痛みを我慢しながら毎日を過ごしていませんか？（100〜200文字程度）';
+  }
+}
+
+// ===== クーポン割引自動計算 =====
+function calcDiscount() {
+  const orig = document.getElementById('coupon_original_price').value.replace(/[^0-9]/g,'');
+  const coup = document.getElementById('coupon_price').value.replace(/[^0-9]/g,'');
+  const el = document.getElementById('coupon-discount');
+  if (orig && coup) {
+    const diff = parseInt(orig) - parseInt(coup);
+    const pct  = Math.round((diff / parseInt(orig)) * 100);
+    el.textContent = `→ ${diff.toLocaleString()}円OFF（${pct}%割引）`;
+  } else {
+    el.textContent = '';
+  }
+}
+document.getElementById('coupon_original_price').addEventListener('input', calcDiscount);
+document.getElementById('coupon_price').addEventListener('input', calcDiscount);
+
+// ===== 例示トグル =====
+function toggleExample(id) {
+  const el = document.getElementById(id);
+  el.classList.toggle('open');
+  const btn = el.previousElementSibling;
+  btn.textContent = el.classList.contains('open') ? '▼ 入力例を閉じる' : '▶ 入力例を見る';
+}
+
+// ===== 写真プレビュー =====
+function triggerFile(id) { document.getElementById(id).click(); }
+function previewPhoto(input, prevId) {
+  const file = input.files[0];
+  if (!file) return;
+  const img  = document.getElementById(prevId);
+  const ph   = document.getElementById('ph-' + prevId.replace('prev-',''));
+  img.src = URL.createObjectURL(file);
+  img.style.display = 'block';
+  if (ph) ph.style.display = 'none';
+}
+
+// ===== ナビゲーション =====
+const STEPS = 6;
+let currentStep = 1;
+
+function updateProgress(step) {
+  const pct = (step / STEPS) * 100;
+  document.getElementById('progress-fill').style.width = pct + '%';
+  for (let i = 1; i <= STEPS; i++) {
+    const el = document.getElementById('pl' + i);
+    el.classList.toggle('active', i === step);
+  }
+}
+
+function goNext(from) {
+  if (!validate(from)) return;
+  document.getElementById('step' + from).classList.remove('active');
+  currentStep = from + 1;
+  document.getElementById('step' + currentStep).classList.add('active');
+  updateProgress(currentStep);
+  window.scrollTo(0, 0);
+}
+
+function goBack(from) {
+  document.getElementById('step' + from).classList.remove('active');
+  currentStep = from - 1;
+  document.getElementById('step' + currentStep).classList.add('active');
+  updateProgress(currentStep);
+  window.scrollTo(0, 0);
+}
+
+function validate(step) {
+  if (step === 1) {
+    if (!document.getElementById('shop_name').value.trim()) { alert('院名・店名を入力してください'); return false; }
+    if (!document.getElementById('url_slug').value.trim()) { alert('URL用スラッグを入力してください'); return false; }
+    if (!document.getElementById('shop_type').value) { alert('業種を選択してください'); return false; }
+    if (!document.getElementById('location').value.trim()) { alert('エリアを入力してください'); return false; }
+    if (!document.getElementById('line_url').value.trim()) { alert('LINE公式アカウントURLを入力してください'); return false; }
+  }
+  if (step === 2) {
+    const menus = document.querySelectorAll('#menu-list .menu-row');
+    const hasMenu = Array.from(menus).some(r => r.querySelector('input').value.trim());
+    if (!hasMenu) { alert('メニューを1つ以上入力してください'); return false; }
+    if (!document.getElementById('coupon_title').value.trim()) { alert('クーポン名を入力してください'); return false; }
+    if (!document.getElementById('coupon_original_price').value.trim()) { alert('通常価格を入力してください'); return false; }
+    if (!document.getElementById('coupon_price').value.trim()) { alert('クーポン価格を入力してください'); return false; }
+  }
+  if (step === 3) {
+    if (!document.getElementById('target').value.trim()) { alert('お客様のプロフィールを入力してください'); return false; }
+    const strengths = document.querySelectorAll('#strengths-list .repeat-item input');
+    const hasStrength = Array.from(strengths).some(i => i.value.trim());
+    if (!hasStrength) { alert('強みを1つ以上入力してください'); return false; }
+  }
+  return true;
+}
+
+// ===== データ収集 =====
+function collectHearing() {
+  const get = id => document.getElementById(id)?.value.trim() || '';
+  const radioVal = name => document.querySelector(`input[name="${name}"]:checked`)?.value || '';
+
+  // メニュー
+  const menus = [];
+  document.querySelectorAll('#menu-list .menu-row').forEach(row => {
+    const inputs = row.querySelectorAll('input');
+    const name = inputs[0].value.trim();
+    if (name) menus.push({ name, price: inputs[1].value.trim(), time: inputs[2].value.trim() });
+  });
+
+  // 繰り返し項目
+  const getList = listId => Array.from(document.querySelectorAll(`#${listId} .repeat-item input`))
+    .map(i => i.value.trim()).filter(Boolean);
+
+  // お客様の声
+  const testimonials = [];
+  const vType = radioVal('voice_type');
+  if (vType === 'input') {
+    document.querySelectorAll('#voice-input .voice-item').forEach(item => {
+      const name = item.querySelector('input')?.value.trim();
+      const comment = item.querySelector('textarea')?.value.trim();
+      if (name && comment) testimonials.push({ name, comment });
+    });
+  }
+
+  // FAQ
+  const faq = [];
+  DEFAULT_FAQ.forEach((q, i) => {
+    const cb = document.getElementById(`faq-cb-${i}`);
+    if (cb?.checked) {
+      const a = document.querySelector(`#faq-ans-${i} textarea`)?.value.trim() || '';
+      faq.push({ q, a });
+    }
+  });
+  document.querySelectorAll('#custom-faq-list .card').forEach(card => {
+    const inputs = card.querySelectorAll('input, textarea');
+    const q = inputs[0]?.value.trim();
+    const a = inputs[1]?.value.trim();
+    if (q) faq.push({ q, a: a || '' });
+  });
+
+  // クーポン
+  const couponTitle = get('coupon_title');
+  const coupon = couponTitle ? {
+    title: couponTitle,
+    offer: get('coupon_offer') || couponTitle,
+    original_price: get('coupon_original_price'),
+    coupon_price: get('coupon_price'),
+    note: 'LINEご登録後、自動でクーポンをお届けします',
+  } : {};
+
+  // 院長メッセージ
+  const ownerMsgType = radioVal('owner_msg_type');
+
+  return {
+    shop_name:           get('shop_name'),
+    url_slug:            get('url_slug'),
+    shop_type:           get('shop_type'),
+    location:            get('location'),
+    address:             get('address'),
+    business_hours:      get('business_hours'),
+    phone:               get('phone'),
+    line_url:            get('line_url'),
+    booking_url:         get('booking_url'),
+    cta_type:            Array.from(document.querySelectorAll('input[name="cta_type"]:checked')).map(cb => cb.value),
+    color_theme:         get('color_theme'),
+    main_menu:           menus,
+    coupon,
+    target:              get('target'),
+    problems_solved:     getList('problems-list'),
+    strengths:           getList('strengths-list'),
+    owner_name:          get('owner_name'),
+    owner_qualifications: get('owner_qualifications'),
+    owner_message:       ownerMsgType === 'ai' ? '' : get('owner_message'),
+    achievements:        getList('achievements-list'),
+    testimonials,
+    testimonials_ai:     vType === 'ai',
+    faq,
+    cta_text:            'まずはLINEで無料相談',
+    cta_sub:             '予約・お問い合わせもLINEで24時間受付中',
+  };
+}
+
+// ===== キャッチコピー生成 =====
+async function generateCatchcopy() {
+  if (!validate(5)) return;
+
+  const hearing = collectHearing();
+  const formData = new FormData();
+  formData.append('hearing', JSON.stringify(hearing));
+
+  document.querySelector('.main').style.display = 'none';
+  document.getElementById('loading').style.display = 'block';
+  document.querySelector('#loading p:first-of-type').textContent = 'キャッチコピーを生成しています...';
+
+  try {
+    const res = await fetch('/lp/catchcopy', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (!data.success) throw new Error('生成に失敗しました');
+
+    // カードを描画
+    const container = document.getElementById('catchcopy-cards');
+    container.innerHTML = '';
+    data.candidates.forEach((text, i) => {
+      const div = document.createElement('div');
+      div.className = 'catchcopy-option';
+      div.innerHTML = `
+        <input type="radio" name="catchcopy" value="${text}" id="cc${i}">
+        <label for="cc${i}" style="display:flex;align-items:center;gap:14px;cursor:pointer;flex:1;">
+          <span class="copy-num">候補 ${i+1}</span>
+          <span class="copy-text">${text}</span>
+        </label>`;
+      div.addEventListener('click', () => {
+        div.querySelector('input').checked = true;
+        document.querySelectorAll('.catchcopy-option').forEach(o => o.classList.remove('selected'));
+        div.classList.add('selected');
+      });
+      container.appendChild(div);
+    });
+
+    document.getElementById('loading').style.display = 'none';
+    document.querySelector('.main').style.display = 'block';
+    document.getElementById('step5').classList.remove('active');
+    currentStep = 6;
+    document.getElementById('step6').classList.add('active');
+    updateProgress(6);
+    window.scrollTo(0, 0);
+  } catch (e) {
+    document.getElementById('loading').style.display = 'none';
+    document.querySelector('.main').style.display = 'block';
+    alert('エラーが発生しました: ' + e.message);
+  }
+}
+
+// ===== 送信 =====
+async function submitForm() {
+  const hearing = collectHearing();
+
+  const formData = new FormData();
+  formData.append('hearing', JSON.stringify(hearing));
+
+  // 選択したキャッチコピーをセット
+  const selectedCopy = document.querySelector('input[name="catchcopy"]:checked')?.value;
+  if (!selectedCopy) { alert('キャッチコピーを1つ選んでください'); return; }
+  hearing.selected_catchcopy = selectedCopy;
+  formData.set('hearing', JSON.stringify(hearing));
+
+  const photoFields = ['hero', 'exterior', 'interior', 'staff', 'treatment'];
+  for (const field of photoFields) {
+    const fileInput = document.getElementById('file-' + field);
+    if (fileInput?.files[0]) formData.append(field, fileInput.files[0]);
+  }
+
+  // ヒーロー写真チェック
+  if (!document.getElementById('file-hero')?.files[0]) {
+    alert('メイン写真（ヒーロー）は必須です');
+    return;
+  }
+
+  document.querySelector('.main').style.display = 'none';
+  document.getElementById('loading').style.display = 'block';
+  document.querySelector('#loading p:first-of-type').textContent = 'LPを生成しています...';
+
+  try {
+    const res = await fetch('/lp/generate', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.detail || 'エラーが発生しました');
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('done').style.display = 'block';
+    if (data.public_url) {
+      const wrap = document.getElementById('lp-url-wrap');
+      const link = document.getElementById('lp-url');
+      wrap.style.display = 'block';
+      link.href = data.public_url;
+      link.textContent = data.public_url;
+    }
+  } catch (e) {
+    document.getElementById('loading').style.display = 'none';
+    document.querySelector('.main').style.display = 'block';
+    alert('エラーが発生しました: ' + e.message);
+  }
+}
+</script>
+</body>
+</html>
