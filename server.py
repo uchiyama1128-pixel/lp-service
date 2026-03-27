@@ -26,6 +26,8 @@ OUTPUT_DIR = _BASE / "tmp" / "output"
 
 
 def _ftp_deploy(html: str, slug: str) -> str:
+    import random, string
+
     host     = os.getenv("XSERVER_FTP_HOST", "")
     user     = os.getenv("XSERVER_FTP_USER", "")
     password = os.getenv("XSERVER_FTP_PASS", "")
@@ -34,22 +36,28 @@ def _ftp_deploy(html: str, slug: str) -> str:
     if not all([host, user, password]):
         raise ValueError("FTP認証情報が設定されていません")
 
-    remote_dir  = "/" + slug
-    remote_file = remote_dir + "/index.html"
-
     with ftplib.FTP_TLS() as ftp:
         ftp.connect(host, 21, timeout=30)
         ftp.auth()
         ftp.login(user, password)
         ftp.prot_p()
         ftp.set_pasv(True)
+
+        # 既存ディレクトリと被った場合はランダム4文字を末尾に付ける
+        final_slug = slug
         try:
-            ftp.mkd(remote_dir)
+            ftp.cwd("/" + slug)
+            suffix = "".join(random.choices(string.ascii_lowercase + string.digits, k=4))
+            final_slug = f"{slug}-{suffix}"
         except ftplib.error_perm:
-            pass
+            pass  # ディレクトリなし → そのまま使用
+
+        remote_dir  = "/" + final_slug
+        remote_file = remote_dir + "/index.html"
+        ftp.mkd(remote_dir)
         ftp.storbinary(f"STOR {remote_file}", io.BytesIO(html.encode("utf-8")))
 
-    return base_url.rstrip("/") + "/" + urllib.parse.quote(slug) + "/"
+    return base_url.rstrip("/") + "/" + urllib.parse.quote(final_slug) + "/"
 
 
 @app.get("/", response_class=HTMLResponse)
