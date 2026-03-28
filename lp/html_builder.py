@@ -565,8 +565,14 @@ def build_lp_html(hearing: dict, copy: dict, embed_images: bool = False) -> str:
       <span class="header-logo">{shop_name}</span>
     </div>
     <div class="header-btns">
-      {f'<a href="tel:{phone}" class="btn-tel">📞 {phone}</a>' if phone else ''}
-      <a href="{line_url}" class="btn-line">▶ LINEで予約</a>
+      {f'''<div style="text-align:right;">
+        <div style="font-size:10px;color:#888;margin-bottom:4px;">電話でのご予約はこちらから</div>
+        <a href="tel:{phone}" class="btn-tel">📞 {phone}</a>
+      </div>''' if phone and "phone" in cta_types else ''}
+      <div style="text-align:right;">
+        <div style="font-size:10px;color:#888;margin-bottom:4px;">LINEご予約・お問い合わせは24時間受付中</div>
+        <a href="{line_url}" class="btn-line">▶ LINEで予約</a>
+      </div>
     </div>
     <!-- ハンバーガーボタン（スマホのみ表示） -->
     <button class="hamburger" id="hamburgerBtn" aria-label="メニューを開く">
