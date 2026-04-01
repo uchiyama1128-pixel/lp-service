@@ -18,6 +18,7 @@ load_dotenv()
 from lp.generator import generate_lp_copy, SYSTEM_PROMPT
 from lp.html_builder import build_lp_html
 from lp.line_richmenu import setup_richmenu
+from lp.google_places import get_review_url
 
 app = FastAPI(title="LP制作代行サービス")
 
@@ -269,25 +270,61 @@ async def post_line_setup(slug: str, request: Request):
 
         shop_name = data.get("shop_name", slug)
         phone = data.get("phone", "")
-        booking_url = data.get("booking_url", "") or homepage_url
+        booking_url = data.get("booking_url", "") or lp_url
         address = data.get("address", "")
         lp_url = data.get("_lp_url", "")
-
-        # ホームページURLはLP URLを使用
-        if not homepage_url:
-            homepage_url = lp_url
-
-        # 施術内容URL未入力ならLPの#menuアンカーを使用
-        if not treatment_url:
-            treatment_url = (lp_url.rstrip("/") + "#menu") if lp_url else lp_url
+        homepage_url = lp_url
+        treatment_url = (lp_url.rstrip("/") + "#menu") if lp_url else lp_url
 
         # 地図URL生成
-        query = urllib.parse.quote(f"{shop_name} {address}")
-        map_url = f"https://maps.google.com/maps?q={query}"
+        map_query = urllib.parse.quote(f"{shop_name} {address}")
+        map_url = f"https://maps.google.com/maps?q={map_query}"
 
-        # 口コミフォームURL（LINE Harness LIFFの感想フォーム）
+        # Google Places APIでPlace IDと口コミURLを自動取得
+        google_api_key = os.getenv("GOOGLE_PLACES_API_KEY", "")
+        _, google_review_url = get_review_url(shop_name, address, google_api_key)
+        coupon_text = data.get("coupon_name", "次回来院クーポン")
+
+        # LINE Harness APIでクライアント専用フォームを作成
+        harness_url = os.getenv("LINE_HARNESS_API_URL", "https://line-crm-worker.uchiyama1128.workers.dev")
+        harness_key = os.getenv("LINE_HARNESS_API_KEY", "")
+        form_id = data.get("_form_id", "")
+
+        form_description = json.dumps({
+            "google_maps_url": google_review_url,
+            "coupon_text": coupon_text,
+        }, ensure_ascii=False)
+
+        if form_id:
+            # 既存フォームを更新
+            httpx.put(
+                f"{harness_url}/api/forms/{form_id}",
+                headers={"Authorization": f"Bearer {harness_key}", "Content-Type": "application/json"},
+                json={"description": form_description},
+                timeout=10,
+            )
+        else:
+            # 新規フォーム作成
+            form_res = httpx.post(
+                f"{harness_url}/api/forms",
+                headers={"Authorization": f"Bearer {harness_key}", "Content-Type": "application/json"},
+                json={
+                    "name": f"感想フォーム - {shop_name}",
+                    "description": form_description,
+                    "fields": [
+                        {"name": "stars", "label": "評価", "type": "number", "required": True},
+                        {"name": "comment", "label": "ご感想", "type": "textarea", "required": False},
+                    ],
+                    "saveToMetadata": True,
+                },
+                timeout=10,
+            )
+            if form_res.is_success:
+                form_id = form_res.json().get("data", {}).get("id", "")
+
+        # 口コミボタンのLIFF URL（クライアント専用フォームID）
         liff_base = os.getenv("LIFF_URL", "https://liff.line.me/2009607643-QGWpmKya")
-        review_form_url = f"{liff_base}?page=form&id=review"
+        review_form_url = f"{liff_base}?page=review&formId={form_id}" if form_id else f"{liff_base}?page=review"
 
         rich_menu_id = setup_richmenu(
             token=line_token,
@@ -301,11 +338,18 @@ async def post_line_setup(slug: str, request: Request):
             image_path=str(RICHMENU_IMAGE),
         )
 
-        # richMenuIdを保存
+        # 結果を保存
         data["_rich_menu_id"] = rich_menu_id
+        data["_form_id"] = form_id
+        data["_google_review_url"] = google_review_url
         path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
-        return {"success": True, "rich_menu_id": rich_menu_id}
+        return {
+            "success": True,
+            "rich_menu_id": rich_menu_id,
+            "form_id": form_id,
+            "google_review_url": google_review_url or "（Google Places APIキー未設定のため未取得）",
+        }
 
     except HTTPException:
         raise
