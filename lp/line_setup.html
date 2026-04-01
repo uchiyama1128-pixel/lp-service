@@ -120,6 +120,38 @@
     }
     .error-msg.show { display: block; }
 
+    .token-guide {
+      background: #e8f5e9;
+      border: 1.5px solid #a5d6a7;
+      border-radius: 10px;
+      padding: 16px 18px;
+    }
+    .guide-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #2e7d32;
+      margin-bottom: 10px;
+    }
+    .token-guide ol {
+      padding-left: 18px;
+      font-size: 13px;
+      color: #333;
+      line-height: 2;
+    }
+    .token-guide a { color: #00897B; }
+    .btn-console {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 8px 16px;
+      background: #00897B;
+      color: #fff !important;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .btn-console:hover { background: #00796B; }
+
     .spinner {
       display: inline-block;
       width: 20px; height: 20px;
@@ -173,23 +205,28 @@
         </div>
       </div>
 
-      <!-- 追加情報 -->
-      <div class="section">
-        <div class="section-title">追加情報（1項目）</div>
-        <div class="field">
-          <label>施術内容ページURL <span class="opt">任意</span></label>
-          <input type="url" id="treatmentUrl" placeholder="空欄の場合はLP内の#menuを自動使用">
-          <p class="hint" id="treatmentHint"></p>
-        </div>
-      </div>
 
       <!-- LINE設定 -->
       <div class="section">
-        <div class="section-title">LINE公式アカウント設定</div>
-        <div class="field">
+        <div class="section-title">LINEチャネルアクセストークン</div>
+
+        <div class="token-guide">
+          <p class="guide-title">取得手順</p>
+          <ol>
+            <li><a href="https://developers.line.biz/console/" target="_blank" rel="noopener">LINE Developers Console</a> を開く</li>
+            <li>該当のチャネルを選択</li>
+            <li>「Messaging API設定」タブをクリック</li>
+            <li>ページ下部の「チャネルアクセストークン（長期）」の「発行」をクリック</li>
+            <li>表示されたトークンをコピーして以下に貼り付ける</li>
+          </ol>
+          <a href="https://developers.line.biz/console/" target="_blank" rel="noopener" class="btn-console">
+            LINE Developers Console を開く →
+          </a>
+        </div>
+
+        <div class="field" style="margin-top:16px;">
           <label>チャネルアクセストークン <span class="req">*</span></label>
-          <input type="password" id="lineToken" placeholder="LINE Developersで発行したトークン" required>
-          <p class="hint">LINE Developers → Messaging API → チャネルアクセストークン（長期）</p>
+          <input type="password" id="lineToken" placeholder="発行したトークンをここに貼り付け" required>
         </div>
       </div>
 
@@ -222,12 +259,6 @@
         document.getElementById('dispAddress').textContent = h.address || '—';
 
         // 施術内容URLのヒントをLP URLで補完
-        if (data.lp_url) {
-          document.getElementById('treatmentUrl').placeholder = data.lp_url + '#menu';
-          document.getElementById('treatmentHint').textContent = `未入力の場合: ${data.lp_url}#menu を自動使用`;
-          document.getElementById('treatmentUrl').dataset.lpUrl = data.lp_url;
-          document.getElementById('treatmentUrl').dataset.homepageUrl = data.lp_url;
-        }
       })
       .catch(() => {});
 
@@ -236,13 +267,11 @@
       const errorMsg = document.getElementById('errorMsg');
       errorMsg.classList.remove('show');
 
-      const treatmentInput = document.getElementById('treatmentUrl');
-      const lpUrl = treatmentInput.dataset.lpUrl || '';
-      const homepageUrl = treatmentInput.dataset.homepageUrl || lpUrl;
-      const treatmentUrl = treatmentInput.value.trim() || (lpUrl ? lpUrl + '#menu' : '');
       const lineToken = document.getElementById('lineToken').value.trim();
-
       if (!lineToken) { showError('チャネルアクセストークンを入力してください'); return; }
+
+      const homepageUrl = '';
+      const treatmentUrl = '';
 
       btn.disabled = true;
       btn.innerHTML = '<span class="spinner"></span>設置中...';
