@@ -572,7 +572,17 @@
     <p style="font-size:13px;font-weight:700;margin-bottom:8px;">あなたのLPはこちらです</p>
     <a id="lp-url" href="#" target="_blank" style="font-size:15px;color:#2C4A7C;word-break:break-all;"></a>
   </div>
-  <p style="font-size:12px;color:#aaa;margin-top:16px;">ご不明な点はLINEよりお問い合わせください</p>
+
+  <div style="margin-top:28px;background:#e8f5e9;border:2px solid #66bb6a;border-radius:14px;padding:24px;text-align:center;">
+    <p style="font-size:13px;color:#2e7d32;font-weight:700;margin-bottom:4px;">STEP 2</p>
+    <p style="font-size:16px;font-weight:700;color:#1b5e20;margin-bottom:8px;">このままLINEの設定に移りましょう</p>
+    <p style="font-size:13px;color:#388e3c;margin-bottom:16px;line-height:1.6;">リッチメニューの設置・口コミフォームの自動作成など<br>LINEに必要な設定を一括で完了します（約1分）</p>
+    <a id="line-setup-btn" href="#" style="display:inline-block;padding:14px 32px;background:#06C755;color:#fff;font-size:15px;font-weight:700;border-radius:10px;text-decoration:none;">
+      LINE設定へ進む →
+    </a>
+  </div>
+
+  <p style="font-size:12px;color:#aaa;margin-top:20px;">ご不明な点はLINEよりお問い合わせください</p>
 </div>
 
 <script>
@@ -981,6 +991,9 @@ async function submitForm() {
       link.textContent = data.public_url;
     } else {
       link.textContent = '（URL取得に失敗しました。LINEよりお問い合わせください）';
+    }
+    if (data.line_setup_url) {
+      document.getElementById('line-setup-btn').href = data.line_setup_url;
     }
   } catch (e) {
     document.getElementById('loading').style.display = 'none';
