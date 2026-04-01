@@ -175,14 +175,10 @@
 
       <!-- 追加情報 -->
       <div class="section">
-        <div class="section-title">追加情報（2項目）</div>
+        <div class="section-title">追加情報（1項目）</div>
         <div class="field">
-          <label>ホームページURL <span class="req">*</span></label>
-          <input type="url" id="homepageUrl" placeholder="https://example.com" required>
-        </div>
-        <div class="field">
-          <label>施術内容ページURL <span class="req">*</span></label>
-          <input type="url" id="treatmentUrl" placeholder="https://example.com/menu または LP内のアンカー">
+          <label>施術内容ページURL <span class="opt">任意</span></label>
+          <input type="url" id="treatmentUrl" placeholder="空欄の場合はLP内の#menuを自動使用">
           <p class="hint" id="treatmentHint"></p>
         </div>
       </div>
@@ -228,8 +224,9 @@
         // 施術内容URLのヒントをLP URLで補完
         if (data.lp_url) {
           document.getElementById('treatmentUrl').placeholder = data.lp_url + '#menu';
-          document.getElementById('treatmentHint').textContent = `未入力の場合: ${data.lp_url}#menu を使用します`;
+          document.getElementById('treatmentHint').textContent = `未入力の場合: ${data.lp_url}#menu を自動使用`;
           document.getElementById('treatmentUrl').dataset.lpUrl = data.lp_url;
+          document.getElementById('treatmentUrl').dataset.homepageUrl = data.lp_url;
         }
       })
       .catch(() => {});
@@ -239,13 +236,12 @@
       const errorMsg = document.getElementById('errorMsg');
       errorMsg.classList.remove('show');
 
-      const homepageUrl = document.getElementById('homepageUrl').value.trim();
       const treatmentInput = document.getElementById('treatmentUrl');
       const lpUrl = treatmentInput.dataset.lpUrl || '';
+      const homepageUrl = treatmentInput.dataset.homepageUrl || lpUrl;
       const treatmentUrl = treatmentInput.value.trim() || (lpUrl ? lpUrl + '#menu' : '');
       const lineToken = document.getElementById('lineToken').value.trim();
 
-      if (!homepageUrl) { showError('ホームページURLを入力してください'); return; }
       if (!lineToken) { showError('チャネルアクセストークンを入力してください'); return; }
 
       btn.disabled = true;

@@ -260,8 +260,6 @@ async def post_line_setup(slug: str, request: Request):
 
         if not line_token:
             raise HTTPException(status_code=400, detail="line_token は必須です")
-        if not homepage_url:
-            raise HTTPException(status_code=400, detail="homepage_url は必須です")
 
         # hearing読み込み
         path = HEARING_DIR / f"{slug}.json"
@@ -275,9 +273,13 @@ async def post_line_setup(slug: str, request: Request):
         address = data.get("address", "")
         lp_url = data.get("_lp_url", "")
 
+        # ホームページURLはLP URLを使用
+        if not homepage_url:
+            homepage_url = lp_url
+
         # 施術内容URL未入力ならLPの#menuアンカーを使用
         if not treatment_url:
-            treatment_url = (lp_url.rstrip("/") + "#menu") if lp_url else homepage_url
+            treatment_url = (lp_url.rstrip("/") + "#menu") if lp_url else lp_url
 
         # 地図URL生成
         query = urllib.parse.quote(f"{shop_name} {address}")
