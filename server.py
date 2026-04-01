@@ -9,20 +9,29 @@ from pathlib import Path
 
 import anthropic
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile, Request
 from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 
 load_dotenv()
 
 from lp.generator import generate_lp_copy, SYSTEM_PROMPT
 from lp.html_builder import build_lp_html
+from lp.line_richmenu import setup_richmenu
 
 app = FastAPI(title="LP制作代行サービス")
 
 _BASE     = Path(__file__).parent
 FORM_PATH = _BASE / "lp" / "form.html"
+LINE_SETUP_PATH = _BASE / "lp" / "line_setup.html"
 PHOTOS_DIR = _BASE / "tmp" / "photos"
 OUTPUT_DIR = _BASE / "tmp" / "output"
+HEARING_DIR = _BASE / "tmp" / "hearings"
+RICHMENU_IMAGE = _BASE / "static" / "richmenu.png"
+
+HEARING_DIR.mkdir(parents=True, exist_ok=True)
+
+app.mount("/static", StaticFiles(directory=str(_BASE / "static")), name="static")
 
 
 def _ftp_deploy(html: str, slug: str) -> str:
@@ -183,6 +192,16 @@ async def generate_lp(
             ftp_error = str(e)
             print(f"⚠️ FTPデプロイ失敗: {e}")
 
+        # hearingデータをスラッグで保存（LINE設定ページで再利用）
+        try:
+            saved_slug = url_slug if not ftp_error else url_slug
+            hearing_dict["_lp_url"] = public_url
+            (HEARING_DIR / f"{saved_slug}.json").write_text(
+                json.dumps(hearing_dict, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+        except Exception as e:
+            print(f"⚠️ hearing保存失敗: {e}")
+
         # 一時ファイルを削除
         try:
             shutil.rmtree(photo_dir)
@@ -193,7 +212,99 @@ async def generate_lp(
             "success": True,
             "public_url": public_url,
             "ftp_error": ftp_error,
+            "line_setup_url": f"/{url_slug}/line-setup" if public_url else "",
         }
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}\n{traceback.format_exc()}")
+
+
+@app.get("/lp/hearing/{slug}")
+async def get_hearing(slug: str):
+    """LP登録済みhearingデータをスラッグで取得"""
+    path = HEARING_DIR / f"{slug}.json"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="hearing not found")
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return {
+        "success": True,
+        "hearing": {
+            "shop_name": data.get("shop_name", ""),
+            "phone": data.get("phone", ""),
+            "booking_url": data.get("booking_url", ""),
+            "address": data.get("address", ""),
+        },
+        "lp_url": data.get("_lp_url", ""),
+    }
+
+
+@app.get("/{slug}/line-setup", response_class=HTMLResponse)
+async def get_line_setup(slug: str):
+    """LINE設定ページ"""
+    path = HEARING_DIR / f"{slug}.json"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail=f"スラッグ '{slug}' のLP情報が見つかりません")
+    return LINE_SETUP_PATH.read_text(encoding="utf-8")
+
+
+@app.post("/{slug}/line-setup")
+async def post_line_setup(slug: str, request: Request):
+    """リッチメニューを作成してLINEに設置"""
+    try:
+        body = await request.json()
+        line_token = body.get("line_token", "").strip()
+        homepage_url = body.get("homepage_url", "").strip()
+        treatment_url = body.get("treatment_url", "").strip()
+
+        if not line_token:
+            raise HTTPException(status_code=400, detail="line_token は必須です")
+        if not homepage_url:
+            raise HTTPException(status_code=400, detail="homepage_url は必須です")
+
+        # hearing読み込み
+        path = HEARING_DIR / f"{slug}.json"
+        if not path.exists():
+            raise HTTPException(status_code=404, detail="LP情報が見つかりません")
+        data = json.loads(path.read_text(encoding="utf-8"))
+
+        shop_name = data.get("shop_name", slug)
+        phone = data.get("phone", "")
+        booking_url = data.get("booking_url", "") or homepage_url
+        address = data.get("address", "")
+        lp_url = data.get("_lp_url", "")
+
+        # 施術内容URL未入力ならLPの#menuアンカーを使用
+        if not treatment_url:
+            treatment_url = (lp_url.rstrip("/") + "#menu") if lp_url else homepage_url
+
+        # 地図URL生成
+        query = urllib.parse.quote(f"{shop_name} {address}")
+        map_url = f"https://maps.google.com/maps?q={query}"
+
+        # 口コミフォームURL（LINE Harness LIFFの感想フォーム）
+        liff_base = os.getenv("LIFF_URL", "https://liff.line.me/2009607643-QGWpmKya")
+        review_form_url = f"{liff_base}?page=form&id=review"
+
+        rich_menu_id = setup_richmenu(
+            token=line_token,
+            shop_name=shop_name,
+            treatment_url=treatment_url,
+            homepage_url=homepage_url,
+            booking_url=booking_url,
+            review_form_url=review_form_url,
+            map_url=map_url,
+            phone=phone,
+            image_path=str(RICHMENU_IMAGE),
+        )
+
+        # richMenuIdを保存
+        data["_rich_menu_id"] = rich_menu_id
+        path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+        return {"success": True, "rich_menu_id": rich_menu_id}
+
     except HTTPException:
         raise
     except Exception as e:

@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LINE設定 | MARUNAGE</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Hiragino Sans', 'Noto Sans JP', system-ui, sans-serif;
+      background: #f5f7fa;
+      color: #1a1a2e;
+      min-height: 100vh;
+    }
+    header {
+      background: #00897B;
+      color: #fff;
+      padding: 20px 24px;
+      text-align: center;
+    }
+    header h1 { font-size: 20px; font-weight: 700; }
+    header p { font-size: 13px; opacity: 0.85; margin-top: 4px; }
+
+    .container { max-width: 680px; margin: 0 auto; padding: 32px 20px 60px; }
+
+    .section {
+      background: #fff;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .section-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #00897B;
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #e0f2f1;
+    }
+    .field { margin-bottom: 16px; }
+    label { display: block; font-size: 13px; font-weight: 600; color: #444; margin-bottom: 6px; }
+    label .req { color: #e53935; margin-left: 4px; }
+    label .opt { font-weight: 400; color: #888; font-size: 12px; margin-left: 4px; }
+    input[type="text"], input[type="url"], input[type="tel"], input[type="password"] {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: border-color 0.2s;
+    }
+    input:focus { outline: none; border-color: #00897B; }
+    .readonly-field {
+      background: #f5f5f5;
+      color: #555;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 14px;
+      border: 1.5px solid #e0e0e0;
+    }
+    .hint { font-size: 12px; color: #888; margin-top: 4px; }
+
+    .richmenu-preview {
+      width: 100%;
+      border-radius: 10px;
+      overflow: hidden;
+      margin: 12px 0 4px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    }
+    .richmenu-preview img { width: 100%; display: block; }
+
+    .btn-submit {
+      width: 100%;
+      padding: 16px;
+      background: #00897B;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+      margin-top: 8px;
+    }
+    .btn-submit:hover { background: #00796B; }
+    .btn-submit:disabled { background: #aaa; cursor: not-allowed; }
+
+    .result {
+      display: none;
+      background: #fff;
+      border-radius: 12px;
+      padding: 32px 24px;
+      text-align: center;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .result.show { display: block; }
+    .result .icon { font-size: 48px; margin-bottom: 12px; }
+    .result h2 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+    .result p { color: #555; font-size: 14px; line-height: 1.7; }
+    .result .richmenu-id {
+      margin-top: 16px;
+      background: #f5f5f5;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      color: #666;
+      word-break: break-all;
+    }
+
+    .error-msg {
+      display: none;
+      background: #fff3f3;
+      border: 1.5px solid #ffcccc;
+      border-radius: 8px;
+      padding: 12px 16px;
+      color: #c62828;
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+    .error-msg.show { display: block; }
+
+    .spinner {
+      display: inline-block;
+      width: 20px; height: 20px;
+      border: 3px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>LINE設定</h1>
+    <p>リッチメニューを自動で設定します</p>
+  </header>
+
+  <div class="container">
+    <div id="formArea">
+      <div class="error-msg" id="errorMsg"></div>
+
+      <!-- リッチメニュープレビュー -->
+      <div class="section">
+        <div class="section-title">設定されるリッチメニュー</div>
+        <div class="richmenu-preview">
+          <img src="/static/richmenu.png" alt="リッチメニュープレビュー">
+        </div>
+        <p class="hint">上記デザインのリッチメニューをLINE公式アカウントに自動設置します</p>
+      </div>
+
+      <!-- LP取得済み情報（確認用） -->
+      <div class="section">
+        <div class="section-title">LP登録済み情報（確認）</div>
+        <div class="field">
+          <label>院名・店名</label>
+          <div class="readonly-field" id="dispShopName">—</div>
+        </div>
+        <div class="field">
+          <label>電話番号</label>
+          <div class="readonly-field" id="dispPhone">—</div>
+        </div>
+        <div class="field">
+          <label>予約フォームURL</label>
+          <div class="readonly-field" id="dispBooking">—</div>
+        </div>
+        <div class="field">
+          <label>住所</label>
+          <div class="readonly-field" id="dispAddress">—</div>
+        </div>
+      </div>
+
+      <!-- 追加情報 -->
+      <div class="section">
+        <div class="section-title">追加情報（2項目）</div>
+        <div class="field">
+          <label>ホームページURL <span class="req">*</span></label>
+          <input type="url" id="homepageUrl" placeholder="https://example.com" required>
+        </div>
+        <div class="field">
+          <label>施術内容ページURL <span class="req">*</span></label>
+          <input type="url" id="treatmentUrl" placeholder="https://example.com/menu または LP内のアンカー">
+          <p class="hint" id="treatmentHint"></p>
+        </div>
+      </div>
+
+      <!-- LINE設定 -->
+      <div class="section">
+        <div class="section-title">LINE公式アカウント設定</div>
+        <div class="field">
+          <label>チャネルアクセストークン <span class="req">*</span></label>
+          <input type="password" id="lineToken" placeholder="LINE Developersで発行したトークン" required>
+          <p class="hint">LINE Developers → Messaging API → チャネルアクセストークン（長期）</p>
+        </div>
+      </div>
+
+      <button class="btn-submit" id="submitBtn" onclick="handleSubmit()">
+        リッチメニューを設置する
+      </button>
+    </div>
+
+    <!-- 完了画面 -->
+    <div class="result" id="resultArea">
+      <div class="icon">✅</div>
+      <h2>リッチメニューの設置完了！</h2>
+      <p>LINEアプリを開いて、トーク画面下部にリッチメニューが表示されているか確認してください。</p>
+      <div class="richmenu-id" id="richMenuIdDisp"></div>
+    </div>
+  </div>
+
+  <script>
+    const slug = location.pathname.replace(/^\//, '').replace(/\/line-setup.*$/, '');
+
+    // LP登録済みデータの読み込み
+    fetch(`/lp/hearing/${slug}`)
+      .then(r => r.json())
+      .then(data => {
+        if (!data.success) return;
+        const h = data.hearing;
+        document.getElementById('dispShopName').textContent = h.shop_name || '—';
+        document.getElementById('dispPhone').textContent = h.phone || '—';
+        document.getElementById('dispBooking').textContent = h.booking_url || '—（未設定）';
+        document.getElementById('dispAddress').textContent = h.address || '—';
+
+        // 施術内容URLのヒントをLP URLで補完
+        if (data.lp_url) {
+          document.getElementById('treatmentUrl').placeholder = data.lp_url + '#menu';
+          document.getElementById('treatmentHint').textContent = `未入力の場合: ${data.lp_url}#menu を使用します`;
+          document.getElementById('treatmentUrl').dataset.lpUrl = data.lp_url;
+        }
+      })
+      .catch(() => {});
+
+    async function handleSubmit() {
+      const btn = document.getElementById('submitBtn');
+      const errorMsg = document.getElementById('errorMsg');
+      errorMsg.classList.remove('show');
+
+      const homepageUrl = document.getElementById('homepageUrl').value.trim();
+      const treatmentInput = document.getElementById('treatmentUrl');
+      const lpUrl = treatmentInput.dataset.lpUrl || '';
+      const treatmentUrl = treatmentInput.value.trim() || (lpUrl ? lpUrl + '#menu' : '');
+      const lineToken = document.getElementById('lineToken').value.trim();
+
+      if (!homepageUrl) { showError('ホームページURLを入力してください'); return; }
+      if (!lineToken) { showError('チャネルアクセストークンを入力してください'); return; }
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>設置中...';
+
+      try {
+        const res = await fetch(`/${slug}/line-setup`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ homepage_url: homepageUrl, treatment_url: treatmentUrl, line_token: lineToken }),
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.detail || '設置に失敗しました');
+
+        document.getElementById('formArea').style.display = 'none';
+        document.getElementById('richMenuIdDisp').textContent = `richMenuId: ${data.rich_menu_id}`;
+        document.getElementById('resultArea').classList.add('show');
+      } catch (e) {
+        showError(e.message);
+        btn.disabled = false;
+        btn.textContent = 'リッチメニューを設置する';
+      }
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('errorMsg');
+      el.textContent = msg;
+      el.classList.add('show');
+    }
+  </script>
+</body>
+</html>
