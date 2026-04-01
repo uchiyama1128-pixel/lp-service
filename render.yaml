@@ -15,3 +15,11 @@ services:
         sync: false
       - key: XSERVER_BASE_URL
         value: https://visionroom.jp/lp/
+      - key: GOOGLE_PLACES_API_KEY
+        sync: false
+      - key: LINE_HARNESS_API_KEY
+        sync: false
+      - key: LINE_HARNESS_API_URL
+        value: https://line-crm-worker.uchiyama1128.workers.dev
+      - key: LIFF_URL
+        value: https://liff.line.me/2009607643-QGWpmKya
