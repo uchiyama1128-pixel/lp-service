@@ -276,12 +276,13 @@ def build_scenarios_for_client(
     # ── 専用エントリールート（QR）作成（既存は再利用） ─────────────
     ref_code = f"lp-{slug}"
 
-    # 既存チェック
+    # 既存チェック（APIはDBのsnake_caseで返す: ref_code）
     existing_er = httpx.get(f"{harness_url}/api/entry-routes", headers=headers, timeout=15)
     existing_route_id: str | None = None
     if existing_er.is_success:
         for er in existing_er.json().get("data", []):
-            if er.get("refCode") == ref_code:
+            # APIレスポンスはsnake_case（ref_code）またはcamelCase（refCode）の可能性あり
+            if er.get("ref_code") == ref_code or er.get("refCode") == ref_code:
                 existing_route_id = er["id"]
                 break
 
