@@ -3,6 +3,7 @@ import ftplib
 import io
 import json
 import os
+import secrets
 import shutil
 import urllib.parse
 from pathlib import Path
@@ -201,6 +202,9 @@ async def generate_lp(
         try:
             saved_slug = url_slug if not ftp_error else url_slug
             hearing_dict["_lp_url"] = public_url
+            # ダッシュボード用ランダムトークン（未設定の場合のみ発行）
+            if not hearing_dict.get("_dashboard_token"):
+                hearing_dict["_dashboard_token"] = secrets.token_urlsafe(24)
             (HEARING_DIR / f"{saved_slug}.json").write_text(
                 json.dumps(hearing_dict, ensure_ascii=False, indent=2), encoding="utf-8"
             )
@@ -468,7 +472,7 @@ async def post_line_setup(slug: str, request: Request):
             "qr_url": scenario_result["qr_url"] if scenario_result else None,
             "ref_code": scenario_result["ref_code"] if scenario_result else None,
             "checkin_qr_url": scenario_result["checkin_qr_url"] if scenario_result else None,
-            "dashboard_url": f"/{slug}/dashboard",
+            "dashboard_url": f"/{slug}/dashboard/{data.get('_dashboard_token', '')}",
             "scenario_error": scenario_error or None,
         }
 
@@ -479,13 +483,15 @@ async def post_line_setup(slug: str, request: Request):
         raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}\n{traceback.format_exc()}")
 
 
-@app.get("/{slug}/dashboard", response_class=HTMLResponse)
-async def get_dashboard(slug: str):
+@app.get("/{slug}/dashboard/{token}", response_class=HTMLResponse)
+async def get_dashboard(slug: str, token: str):
     """クライアントダッシュボード"""
     path = HEARING_DIR / f"{slug}.json"
     if not path.exists():
         raise HTTPException(status_code=404, detail="LP情報が見つかりません")
     data = json.loads(path.read_text(encoding="utf-8"))
+    if data.get("_dashboard_token") != token:
+        raise HTTPException(status_code=403, detail="URLが正しくありません")
 
     harness_url_val = os.getenv("LINE_HARNESS_API_URL", "https://line-crm-worker.uchiyama1128.workers.dev")
     harness_key_val = os.getenv("LINE_HARNESS_API_KEY", "")
