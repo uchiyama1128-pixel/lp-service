@@ -336,6 +336,52 @@
       <div id="coupon-discount" class="hint-text" style="margin-top:-10px;margin-bottom:12px;"></div>
     </div>
 
+    <div class="card">
+      <div class="notice">
+        <strong>💬 感想フォーム送信後の特典クーポン</strong><br>
+        施術後にLINEで感想を送ってくれた方への御礼クーポンです。口コミ投稿や再来院につながります。<br>
+        <strong>500円引きでも十分な効果があります。</strong>割引額以上に口コミ増加・再来院率向上が見込めるためおすすめです。<br>
+        割引に抵抗がある場合は「特典あり」と表示するだけでも登録率が上がります。
+      </div>
+      <div class="field" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <label>感想特典の内容<span class="hint">任意</span></label>
+          <input type="text" id="review_coupon_name" placeholder="例：次回来院クーポン">
+        </div>
+        <div>
+          <label>割引金額</label>
+          <input type="text" id="review_coupon_discount" placeholder="例：500円引き">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="notice">
+        <strong>🔁 再来院誘導クーポン</strong><br>
+        来院から一定期間後にLINEで自動送信する再来院促進クーポンです。<br>
+        <strong>500〜1,000円引きが費用対効果のバランスが良い設定です。</strong>1名の再来院で元が取れるため、ぜひ活用ください。
+      </div>
+      <div class="field" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <label>再来院クーポンの内容<span class="hint">任意</span></label>
+          <input type="text" id="revisit_coupon_name" placeholder="例：再来院クーポン">
+        </div>
+        <div>
+          <label>割引金額</label>
+          <input type="text" id="revisit_coupon_discount" placeholder="例：1,000円引き">
+        </div>
+      </div>
+      <div class="field">
+        <label>送信タイミング</label>
+        <select id="revisit_coupon_timing">
+          <option value="7">来院から7日後</option>
+          <option value="14" selected>来院から14日後</option>
+          <option value="30">来院から30日後</option>
+          <option value="60">来院から60日後</option>
+        </select>
+      </div>
+    </div>
+
     <div class="nav-buttons">
       <button class="btn-back" onclick="goBack(2)">← 戻る</button>
       <button class="btn-next" onclick="goNext(2)">次へ →</button>
@@ -876,6 +922,11 @@ function collectHearing() {
     color_theme:         get('color_theme'),
     main_menu:           menus,
     coupon,
+    review_coupon_name:     get('review_coupon_name'),
+    review_coupon_discount: get('review_coupon_discount'),
+    revisit_coupon_name:    get('revisit_coupon_name'),
+    revisit_coupon_discount: get('revisit_coupon_discount'),
+    revisit_coupon_timing:  get('revisit_coupon_timing') || '14',
     target:              get('target'),
     problems_solved:     getList('problems-list'),
     strengths:           getList('strengths-list'),

@@ -181,19 +181,30 @@ def build_scenarios_for_client(
         "existing": f"{shop_name}_既存顧客",
     }
 
-    # ── タグ作成 ────────────────────────────────────────────────────
+    # ── タグ作成（既存タグは再利用） ───────────────────────────────
+    # まず全タグを取得して name→id マップを作成
+    existing_tags_res = httpx.get(f"{harness_url}/api/tags", headers=headers, timeout=15)
+    existing_name_to_id: dict[str, str] = {}
+    if existing_tags_res.is_success:
+        for t in existing_tags_res.json().get("data", []):
+            existing_name_to_id[t["name"]] = t["id"]
+
     tag_ids = {}
     for key, name in tag_names.items():
-        res = httpx.post(
-            f"{harness_url}/api/tags",
-            headers=headers,
-            json={"name": name, "lineAccountId": line_account_id},
-            timeout=15,
-        )
-        if res.is_success:
-            tag_ids[key] = res.json()["data"]["id"]
+        if name in existing_name_to_id:
+            # 既存タグを再利用
+            tag_ids[key] = existing_name_to_id[name]
         else:
-            raise RuntimeError(f"タグ作成失敗 ({name}): {res.text}")
+            res = httpx.post(
+                f"{harness_url}/api/tags",
+                headers=headers,
+                json={"name": name},
+                timeout=15,
+            )
+            if res.is_success:
+                tag_ids[key] = res.json()["data"]["id"]
+            else:
+                raise RuntimeError(f"タグ作成失敗 ({name}): {res.text}")
 
     # ── シナリオテンプレート取得 ────────────────────────────────────
     templates = _scenario_templates(
@@ -262,24 +273,36 @@ def build_scenarios_for_client(
             if not st_res.is_success:
                 raise RuntimeError(f"ステップ作成失敗 (step{step['stepOrder']}): {st_res.text}")
 
-    # ── 専用エントリールート（QR）作成 ─────────────────────────────
+    # ── 専用エントリールート（QR）作成（既存は再利用） ─────────────
     ref_code = f"lp-{slug}"
-    er_res = httpx.post(
-        f"{harness_url}/api/entry-routes",
-        headers=headers,
-        json={
-            "refCode":      ref_code,
-            "name":         f"LP経由_{shop_name}",
-            "tagId":        tag_ids["lp"],
-            "lineAccountId": line_account_id,
-            "redirectUrl":  None,
-        },
-        timeout=15,
-    )
-    if not er_res.is_success:
-        raise RuntimeError(f"エントリールート作成失敗: {er_res.text}")
 
-    entry_route = er_res.json()["data"]
+    # 既存チェック
+    existing_er = httpx.get(f"{harness_url}/api/entry-routes", headers=headers, timeout=15)
+    existing_route_id: str | None = None
+    if existing_er.is_success:
+        for er in existing_er.json().get("data", []):
+            if er.get("refCode") == ref_code:
+                existing_route_id = er["id"]
+                break
+
+    if existing_route_id:
+        entry_route = {"id": existing_route_id}
+    else:
+        er_res = httpx.post(
+            f"{harness_url}/api/entry-routes",
+            headers=headers,
+            json={
+                "refCode":      ref_code,
+                "name":         f"LP経由_{shop_name}",
+                "tagId":        tag_ids["lp"],
+                "lineAccountId": line_account_id,
+                "redirectUrl":  None,
+            },
+            timeout=15,
+        )
+        if not er_res.is_success:
+            raise RuntimeError(f"エントリールート作成失敗: {er_res.text}")
+        entry_route = er_res.json()["data"]
 
     # QRコードURL: /auth/line?ref=REF&account=ACCOUNT_ID
     qr_url = f"{harness_url}/auth/line?ref={ref_code}&account={line_account_id}"
