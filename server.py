@@ -270,9 +270,9 @@ async def post_line_setup(slug: str, request: Request):
 
         shop_name = data.get("shop_name", slug)
         phone = data.get("phone", "")
-        booking_url = data.get("booking_url", "") or lp_url
         address = data.get("address", "")
         lp_url = data.get("_lp_url", "")
+        booking_url = data.get("booking_url", "") or lp_url
         homepage_url = lp_url
         treatment_url = (lp_url.rstrip("/") + "#menu") if lp_url else lp_url
 
@@ -283,7 +283,15 @@ async def post_line_setup(slug: str, request: Request):
         # Google Places APIでPlace IDと口コミURLを自動取得
         google_api_key = os.getenv("GOOGLE_PLACES_API_KEY", "")
         _, google_review_url = get_review_url(shop_name, address, google_api_key)
-        coupon_text = data.get("coupon_name", "次回来院クーポン")
+        # 感想特典・再来院クーポン情報
+        review_coupon_name = data.get("review_coupon_name", "次回来院クーポン")
+        review_coupon_discount = data.get("review_coupon_discount", "")
+        review_coupon_text = f"{review_coupon_name}（{review_coupon_discount}）" if review_coupon_discount else review_coupon_name
+
+        revisit_coupon_name = data.get("revisit_coupon_name", "再来院クーポン")
+        revisit_coupon_discount = data.get("revisit_coupon_discount", "")
+        revisit_coupon_text = f"{revisit_coupon_name}（{revisit_coupon_discount}）" if revisit_coupon_discount else revisit_coupon_name
+        revisit_coupon_timing = data.get("revisit_coupon_timing", "14")
 
         # LINE Harness APIでクライアント専用フォームを作成
         harness_url = os.getenv("LINE_HARNESS_API_URL", "https://line-crm-worker.uchiyama1128.workers.dev")
@@ -292,7 +300,9 @@ async def post_line_setup(slug: str, request: Request):
 
         form_description = json.dumps({
             "google_maps_url": google_review_url,
-            "coupon_text": coupon_text,
+            "coupon_text": review_coupon_text,
+            "revisit_coupon_text": revisit_coupon_text,
+            "revisit_coupon_timing_days": revisit_coupon_timing,
         }, ensure_ascii=False)
 
         if form_id:
