@@ -370,20 +370,104 @@ async def post_line_setup(slug: str, request: Request):
 
 @app.delete("/admin/clear-all-data")
 async def clear_all_data(secret: str = ""):
-    """全テストデータを削除（管理者専用・テスト後に削除すること）"""
+    """全テストデータを削除（Renderローカル＋Xサーバー両方）"""
     if secret != os.getenv("ADMIN_SECRET", ""):
         raise HTTPException(status_code=403, detail="forbidden")
-    deleted = []
+
+    # Renderローカルデータ削除
+    deleted_local = []
     for d in [HEARING_DIR, PHOTOS_DIR, OUTPUT_DIR]:
         if d.exists():
             for f in d.iterdir():
                 if f.is_file():
                     f.unlink()
-                    deleted.append(f.name)
+                    deleted_local.append(f.name)
                 elif f.is_dir():
                     shutil.rmtree(f)
-                    deleted.append(f.name)
-    return {"deleted": deleted, "count": len(deleted)}
+                    deleted_local.append(f.name)
+
+    # Xサーバー FTP削除
+    host     = os.getenv("XSERVER_FTP_HOST", "")
+    user     = os.getenv("XSERVER_FTP_USER", "")
+    password = os.getenv("XSERVER_FTP_PASS", "")
+    deleted_ftp = []
+    ftp_error = ""
+
+    if all([host, user, password]):
+        try:
+            def _ftp_rmdir_recursive(ftp, path):
+                """FTPディレクトリを再帰的に削除"""
+                try:
+                    ftp.cwd(path)
+                except ftplib.error_perm:
+                    return
+                items = []
+                ftp.retrlines("LIST", items.append)
+                for item in items:
+                    parts = item.split(None, 8)
+                    if len(parts) < 9:
+                        continue
+                    name = parts[8]
+                    if name in (".", ".."):
+                        continue
+                    full = f"{path}/{name}"
+                    if item.startswith("d"):
+                        _ftp_rmdir_recursive(ftp, full)
+                        try:
+                            ftp.rmd(full)
+                        except Exception:
+                            pass
+                    else:
+                        try:
+                            ftp.delete(full)
+                        except Exception:
+                            pass
+
+            with ftplib.FTP_TLS() as ftp:
+                ftp.connect(host, 21, timeout=30)
+                ftp.auth()
+                ftp.login(user, password)
+                ftp.prot_p()
+                ftp.set_pasv(True)
+
+                # /lp/ 直下のディレクトリ一覧を取得して全削除
+                lp_root = "/lp"
+                try:
+                    ftp.cwd(lp_root)
+                except ftplib.error_perm:
+                    ftp_error = f"{lp_root} ディレクトリが見つかりません"
+                else:
+                    items = []
+                    ftp.retrlines("LIST", items.append)
+                    for item in items:
+                        parts = item.split(None, 8)
+                        if len(parts) < 9:
+                            continue
+                        name = parts[8]
+                        if name in (".", ".."):
+                            continue
+                        full_path = f"{lp_root}/{name}"
+                        if item.startswith("d"):
+                            _ftp_rmdir_recursive(ftp, full_path)
+                            try:
+                                ftp.rmd(full_path)
+                                deleted_ftp.append(name)
+                            except Exception as e:
+                                ftp_error += f" rmd({name})失敗: {e}"
+                        else:
+                            try:
+                                ftp.delete(full_path)
+                                deleted_ftp.append(name)
+                            except Exception as e:
+                                ftp_error += f" delete({name})失敗: {e}"
+        except Exception as e:
+            ftp_error = str(e)
+
+    return {
+        "deleted_local": deleted_local,
+        "deleted_ftp": deleted_ftp,
+        "ftp_error": ftp_error or None,
+    }
 
 
 if __name__ == "__main__":
