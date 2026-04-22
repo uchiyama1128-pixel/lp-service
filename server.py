@@ -307,7 +307,10 @@ async def post_line_setup(slug: str, request: Request):
             "revisit_coupon_timing_days": revisit_coupon_timing,
         }, ensure_ascii=False)
 
-        if form_id:
+        if not harness_key:
+            # APIキー未設定の場合はフォーム作成をスキップ
+            pass
+        elif form_id:
             # 既存フォームを更新
             httpx.put(
                 f"{harness_url}/api/forms/{form_id}",
