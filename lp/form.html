@@ -643,12 +643,34 @@
     <a id="lp-url" href="#" target="_blank" style="font-size:15px;color:#2C4A7C;word-break:break-all;"></a>
   </div>
 
+  <!-- LINEあり：設定ページへ -->
   <div id="line-setup-section" style="margin-top:28px;background:#e8f5e9;border:2px solid #66bb6a;border-radius:14px;padding:24px;text-align:center;">
     <p style="font-size:13px;color:#2e7d32;font-weight:700;margin-bottom:4px;">STEP 2</p>
     <p style="font-size:16px;font-weight:700;color:#1b5e20;margin-bottom:8px;">このままLINEの設定に移りましょう</p>
     <p style="font-size:13px;color:#388e3c;margin-bottom:16px;line-height:1.6;">リッチメニューの設置・口コミフォームの自動作成など<br>LINEに必要な設定を一括で完了します（約1分）</p>
     <a id="line-setup-btn" href="#" style="display:inline-block;padding:14px 32px;background:#06C755;color:#fff;font-size:15px;font-weight:700;border-radius:10px;text-decoration:none;">
       LINE設定へ進む →
+    </a>
+  </div>
+
+  <!-- LINEなし：アカウント作成案内 -->
+  <div id="line-create-section" style="display:none;margin-top:28px;background:#fff8e1;border:2px solid #ffcc02;border-radius:14px;padding:24px;">
+    <p style="font-size:13px;color:#b8860b;font-weight:700;margin-bottom:4px;">STEP 2</p>
+    <p style="font-size:16px;font-weight:700;color:#7a5800;margin-bottom:8px;">LINE公式アカウントを作成しましょう</p>
+    <p style="font-size:13px;color:#7a5800;margin-bottom:16px;line-height:1.8;">
+      LPにLINE登録ボタンを設置するには、LINE公式アカウントが必要です。<br>
+      以下の手順で無料で作成できます（10〜15分）。
+    </p>
+    <ol style="font-size:13px;color:#555;line-height:2.2;padding-left:20px;text-align:left;margin-bottom:16px;">
+      <li><a href="https://www.lycbiz.com/jp/service/line-official-account/" target="_blank" style="color:#b8860b;">LINE公式アカウント開設ページ</a>を開く</li>
+      <li>「無料で始める」→ LINEアカウントでログイン</li>
+      <li>アカウント名・業種を入力して作成完了</li>
+      <li><a href="https://developers.line.biz/console/" target="_blank" style="color:#b8860b;">LINE Developers Console</a>でMessaging APIチャネルを作成</li>
+      <li>チャネルID・チャネルシークレット・アクセストークンを取得</li>
+      <li>下のボタンからLINE設定ページで入力</li>
+    </ol>
+    <a id="line-setup-btn-none" href="#" style="display:inline-block;padding:14px 32px;background:#06C755;color:#fff;font-size:15px;font-weight:700;border-radius:10px;text-decoration:none;">
+      準備ができたらLINE設定へ進む →
     </a>
   </div>
 
@@ -1109,9 +1131,13 @@ async function submitForm() {
       link.textContent = '（URL取得に失敗しました。LINEよりお問い合わせください）';
     }
     const lineStatus = document.querySelector('input[name="line_status"]:checked')?.value;
-    const lineSetupSection = document.getElementById('line-setup-section');
     if (lineStatus === 'none') {
-      if (lineSetupSection) lineSetupSection.style.display = 'none';
+      document.getElementById('line-setup-section').style.display = 'none';
+      const createSection = document.getElementById('line-create-section');
+      createSection.style.display = 'block';
+      if (data.line_setup_url) {
+        document.getElementById('line-setup-btn-none').href = data.line_setup_url;
+      }
     } else if (data.line_setup_url) {
       document.getElementById('line-setup-btn').href = data.line_setup_url;
     }
