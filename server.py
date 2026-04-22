@@ -28,6 +28,7 @@ app = FastAPI(title="LP制作代行サービス")
 _BASE     = Path(__file__).parent
 FORM_PATH = _BASE / "lp" / "form.html"
 LINE_SETUP_PATH = _BASE / "lp" / "line_setup.html"
+DASHBOARD_PATH  = _BASE / "lp" / "dashboard.html"
 PHOTOS_DIR = _BASE / "tmp" / "photos"
 OUTPUT_DIR = _BASE / "tmp" / "output"
 HEARING_DIR = _BASE / "tmp" / "hearings"
@@ -446,8 +447,10 @@ async def post_line_setup(slug: str, request: Request):
                     slug=slug,
                     liff_url=liff_url,
                 )
-                data["_qr_url"] = scenario_result["qr_url"]
-                data["_entry_route_id"] = scenario_result["entry_route_id"]
+                data["_qr_url"]           = scenario_result["qr_url"]
+                data["_entry_route_id"]   = scenario_result["entry_route_id"]
+                data["_checkin_qr_url"]   = scenario_result["checkin_qr_url"]
+                data["_checkin_route_id"] = scenario_result["checkin_route_id"]
             except Exception as e:
                 scenario_error = str(e)
 
@@ -464,6 +467,8 @@ async def post_line_setup(slug: str, request: Request):
             "google_review_url": google_review_url or "（Google Places APIキー未設定のため未取得）",
             "qr_url": scenario_result["qr_url"] if scenario_result else None,
             "ref_code": scenario_result["ref_code"] if scenario_result else None,
+            "checkin_qr_url": scenario_result["checkin_qr_url"] if scenario_result else None,
+            "dashboard_url": f"/{slug}/dashboard",
             "scenario_error": scenario_error or None,
         }
 
@@ -472,6 +477,82 @@ async def post_line_setup(slug: str, request: Request):
     except Exception as e:
         import traceback
         raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}\n{traceback.format_exc()}")
+
+
+@app.get("/{slug}/dashboard", response_class=HTMLResponse)
+async def get_dashboard(slug: str):
+    """クライアントダッシュボード"""
+    path = HEARING_DIR / f"{slug}.json"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="LP情報が見つかりません")
+    data = json.loads(path.read_text(encoding="utf-8"))
+
+    harness_url_val = os.getenv("LINE_HARNESS_API_URL", "https://line-crm-worker.uchiyama1128.workers.dev")
+    harness_key_val = os.getenv("LINE_HARNESS_API_KEY", "")
+    headers = {"Authorization": f"Bearer {harness_key_val}", "Content-Type": "application/json"}
+
+    # シナリオステップ取得
+    scenarios_html = ""
+    if harness_key_val and data.get("line_account_id"):
+        try:
+            res = httpx.get(
+                f"{harness_url_val}/api/scenarios",
+                headers=headers,
+                params={"lineAccountId": data["line_account_id"]},
+                timeout=10,
+            )
+            if res.is_success:
+                for s in res.json().get("data", []):
+                    steps_res = httpx.get(
+                        f"{harness_url_val}/api/scenarios/{s['id']}/steps",
+                        headers=headers,
+                        timeout=10,
+                    )
+                    steps_html = ""
+                    if steps_res.is_success:
+                        for st in sorted(steps_res.json().get("data", []), key=lambda x: x.get("stepOrder", 0)):
+                            delay = st.get("delayMinutes", 0)
+                            delay_label = "即時" if delay == 0 else f"{delay // 1440}日後 {st.get('deliveryHour', '')}時"
+                            content = st.get("messageContent", "").replace("\n", "<br>")
+                            steps_html += f"""<div class="step-item">
+                              <span class="step-badge">STEP {st.get('stepOrder', '')}</span>
+                              <span class="step-timing">{delay_label}</span>
+                              <div class="step-content">{content}</div>
+                            </div>"""
+                    trigger = s.get("triggerType", "")
+                    trigger_label = {"friend_add": "友だち追加時", "tag_added": "タグ付与時"}.get(trigger, trigger)
+                    scenarios_html += f"""<details class="scenario-block">
+                      <summary>{s['name']} <span class="trigger-badge">{trigger_label}</span></summary>
+                      <div class="steps-wrap">{steps_html}</div>
+                    </details>"""
+        except Exception:
+            scenarios_html = "<p style='color:#888;font-size:13px;'>シナリオ情報を取得できませんでした</p>"
+
+    # QRコードURL
+    lp_qr_url      = data.get("_qr_url", "")
+    checkin_qr_url = data.get("_checkin_qr_url", "")
+    lp_url         = data.get("_lp_url", "")
+    shop_name      = data.get("shop_name", "")
+
+    qr_api = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data="
+
+    lp_qr_img      = qr_api + urllib.parse.quote(lp_qr_url)      if lp_qr_url      else ""
+    checkin_qr_img = qr_api + urllib.parse.quote(checkin_qr_url) if checkin_qr_url else ""
+
+    def _qr_block(img_url: str, raw_url: str, filename: str) -> str:
+        if not img_url:
+            return '<div class="no-qr">LINE設定後に生成</div>'
+        return f'''<img src="{img_url}" alt="QR">
+          <div class="qr-url-text">{raw_url}</div>
+          <a class="btn-dl" href="{img_url}" download="{filename}" target="_blank">画像を保存</a>'''
+
+    html = DASHBOARD_PATH.read_text(encoding="utf-8")
+    html = html.replace("{{SHOP_NAME}}", shop_name)
+    html = html.replace("{{LP_URL}}", lp_url)
+    html = html.replace("{{LP_QR_BLOCK}}", _qr_block(lp_qr_img, lp_qr_url, "qr_lp.png"))
+    html = html.replace("{{CHECKIN_QR_BLOCK}}", _qr_block(checkin_qr_img, checkin_qr_url, "qr_checkin.png"))
+    html = html.replace("{{SCENARIOS_HTML}}", scenarios_html)
+    return html
 
 
 @app.delete("/admin/clear-all-data")

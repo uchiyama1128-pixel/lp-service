@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ダッシュボード | {{SHOP_NAME}}</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Hiragino Sans', 'Noto Sans JP', system-ui, sans-serif;
+      background: #f5f7fa;
+      color: #1a1a2e;
+      min-height: 100vh;
+    }
+    header {
+      background: #2C4A7C;
+      color: #fff;
+      padding: 20px 24px;
+    }
+    header h1 { font-size: 18px; font-weight: 700; }
+    header p { font-size: 12px; opacity: 0.75; margin-top: 4px; }
+
+    .container { max-width: 720px; margin: 0 auto; padding: 28px 16px 60px; }
+
+    .section {
+      background: #fff;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+    }
+    .section-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #2C4A7C;
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #e8edf5;
+    }
+
+    /* LP URL */
+    .lp-url-box {
+      background: #f0f4ff;
+      border: 1px solid #c0d0f0;
+      border-radius: 8px;
+      padding: 14px 16px;
+      font-size: 14px;
+      word-break: break-all;
+    }
+    .lp-url-box a { color: #2C4A7C; font-weight: 600; }
+
+    /* QRコード */
+    .qr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media(max-width: 480px) { .qr-grid { grid-template-columns: 1fr; } }
+    .qr-card {
+      border: 1px solid #e0e6f0;
+      border-radius: 10px;
+      padding: 20px 16px;
+      text-align: center;
+    }
+    .qr-card h3 { font-size: 13px; font-weight: 700; margin-bottom: 4px; color: #333; }
+    .qr-card p { font-size: 11px; color: #888; margin-bottom: 14px; line-height: 1.6; }
+    .qr-card img { width: 160px; height: 160px; border: 1px solid #eee; border-radius: 6px; }
+    .qr-card .no-qr { width: 160px; height: 160px; background: #f5f5f5; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #aaa; margin: 0 auto; }
+    .btn-dl {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 7px 16px;
+      background: #2C4A7C;
+      color: #fff;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .btn-dl:hover { background: #1e3560; }
+    .qr-url-text {
+      margin-top: 8px;
+      font-size: 11px;
+      color: #888;
+      word-break: break-all;
+      line-height: 1.5;
+    }
+
+    /* シナリオ */
+    .scenario-block {
+      border: 1px solid #e0e6f0;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      overflow: hidden;
+    }
+    .scenario-block summary {
+      padding: 12px 16px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      background: #f8faff;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      user-select: none;
+    }
+    .scenario-block summary::-webkit-details-marker { display: none; }
+    .scenario-block summary::before {
+      content: '▶';
+      font-size: 10px;
+      color: #2C4A7C;
+      flex-shrink: 0;
+      transition: transform 0.2s;
+    }
+    .scenario-block[open] summary::before { transform: rotate(90deg); }
+    .trigger-badge {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 99px;
+      background: #e8edf5;
+      color: #2C4A7C;
+      margin-left: auto;
+      flex-shrink: 0;
+    }
+    .steps-wrap { padding: 12px 16px; }
+    .step-item {
+      border-left: 3px solid #2C4A7C;
+      padding: 10px 14px;
+      margin-bottom: 10px;
+      background: #fafbfc;
+      border-radius: 0 6px 6px 0;
+    }
+    .step-item:last-child { margin-bottom: 0; }
+    .step-badge {
+      font-size: 11px;
+      font-weight: 700;
+      color: #2C4A7C;
+      margin-right: 8px;
+    }
+    .step-timing {
+      font-size: 11px;
+      color: #888;
+      background: #f0f0f0;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+    .step-content {
+      margin-top: 8px;
+      font-size: 13px;
+      color: #333;
+      line-height: 1.8;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>{{SHOP_NAME}} ダッシュボード</h1>
+    <p>LINE・LP管理画面</p>
+  </header>
+
+  <div class="container">
+
+    <!-- LP URL -->
+    <div class="section">
+      <div class="section-title">あなたのLP</div>
+      <div class="lp-url-box">
+        <a href="{{LP_URL}}" target="_blank" rel="noopener">{{LP_URL}}</a>
+      </div>
+    </div>
+
+    <!-- QRコード -->
+    <div class="section">
+      <div class="section-title">QRコード</div>
+      <div class="qr-grid">
+
+        <!-- LP経由 -->
+        <div class="qr-card">
+          <h3>新規LP経由</h3>
+          <p>LPに貼るLINE登録用QR<br>このQR経由の方にシナリオが自動スタート</p>
+          {{LP_QR_BLOCK}}
+        </div>
+
+        <!-- 来院チェックイン -->
+        <div class="qr-card">
+          <h3>来院チェックイン</h3>
+          <p>院内に設置して毎回読み込んでもらうQR<br>来院記録・施術後フォローが自動スタート</p>
+          {{CHECKIN_QR_BLOCK}}
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ステップ配信 -->
+    <div class="section">
+      <div class="section-title">ステップ配信シナリオ</div>
+      {{SCENARIOS_HTML}}
+    </div>
+
+  </div>
+</body>
+</html>

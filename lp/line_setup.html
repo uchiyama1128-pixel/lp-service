@@ -292,6 +292,14 @@
         <div style="margin-top:8px; font-size:12px; color:#6b7280;">ref code: <span id="refCodeDisp" style="font-family:monospace;"></span></div>
       </div>
 
+      <!-- ダッシュボードへ -->
+      <div id="dashboardSection" style="display:none; margin-top:20px; padding:20px; background:#eff6ff; border-radius:12px; border:1px solid #93c5fd; text-align:center;">
+        <p style="font-size:14px; font-weight:700; color:#1e40af; margin-bottom:12px;">📊 QRコードとシナリオはダッシュボードで確認できます</p>
+        <a id="dashboardBtn" href="#" style="display:inline-block; padding:12px 28px; background:#2C4A7C; color:#fff; font-size:14px; font-weight:700; border-radius:8px; text-decoration:none;">
+          ダッシュボードを開く →
+        </a>
+      </div>
+
       <div id="scenarioError" style="display:none; margin-top:16px; padding:12px; background:#fef2f2; border-radius:8px; border:1px solid #fca5a5; font-size:13px; color:#b91c1c;"></div>
     </div>
   </div>
@@ -351,6 +359,10 @@
           document.getElementById('qrUrlLink').textContent = data.qr_url;
           document.getElementById('refCodeDisp').textContent = data.ref_code;
           qrSection.style.display = 'block';
+        }
+        if (data.dashboard_url) {
+          document.getElementById('dashboardBtn').href = data.dashboard_url;
+          document.getElementById('dashboardSection').style.display = 'block';
         }
         if (data.scenario_error) {
           const errEl = document.getElementById('scenarioError');

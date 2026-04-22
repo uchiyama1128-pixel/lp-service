@@ -290,45 +290,51 @@ def build_scenarios_for_client(
             if not st_res.is_success:
                 raise RuntimeError(f"ステップ作成失敗 (step{step['stepOrder']}): {st_res.text}")
 
-    # ── 専用エントリールート（QR）作成（既存は再利用） ─────────────
-    ref_code = f"lp-{slug}"
-
-    # 既存チェック（APIはDBのsnake_caseで返す: ref_code）
+    # ── エントリールート（QR）作成（既存は再利用） ──────────────────
     existing_er = httpx.get(f"{harness_url}/api/entry-routes", headers=headers, timeout=15)
-    existing_route_id: str | None = None
+    existing_routes: dict[str, str] = {}  # ref_code → id
     if existing_er.is_success:
         for er in existing_er.json().get("data", []):
-            # APIレスポンスはsnake_case（ref_code）またはcamelCase（refCode）の可能性あり
-            if er.get("ref_code") == ref_code or er.get("refCode") == ref_code:
-                existing_route_id = er["id"]
-                break
+            rc = er.get("ref_code") or er.get("refCode", "")
+            if rc:
+                existing_routes[rc] = er["id"]
 
-    if existing_route_id:
-        entry_route = {"id": existing_route_id}
-    else:
+    def _ensure_entry_route(ref_code: str, name: str, tag_id: str) -> str:
+        if ref_code in existing_routes:
+            return existing_routes[ref_code]
         er_res = httpx.post(
             f"{harness_url}/api/entry-routes",
             headers=headers,
             json={
-                "refCode":      ref_code,
-                "name":         f"LP経由_{shop_name}",
-                "tagId":        tag_ids["lp"],
+                "refCode":       ref_code,
+                "name":          name,
+                "tagId":         tag_id,
                 "lineAccountId": line_account_id,
-                "redirectUrl":  None,
+                "redirectUrl":   None,
             },
             timeout=15,
         )
         if not er_res.is_success:
-            raise RuntimeError(f"エントリールート作成失敗: {er_res.text}")
-        entry_route = er_res.json()["data"]
+            raise RuntimeError(f"エントリールート作成失敗 ({name}): {er_res.text}")
+        return er_res.json()["data"]["id"]
 
-    # QRコードURL: /auth/line?ref=REF&account=ACCOUNT_ID
-    qr_url = f"{harness_url}/auth/line?ref={ref_code}&account={line_account_id}"
+    # LP経由QR
+    lp_ref_code = f"lp-{slug}"
+    lp_route_id = _ensure_entry_route(lp_ref_code, f"LP経由_{shop_name}", tag_ids["lp"])
+    lp_qr_url   = f"{harness_url}/auth/line?ref={lp_ref_code}&account={line_account_id}"
+
+    # 来院チェックインQR
+    checkin_ref_code = f"checkin-{slug}"
+    checkin_route_id = _ensure_entry_route(checkin_ref_code, f"来院チェックイン_{shop_name}", tag_ids["checkin"])
+    checkin_qr_url   = f"{harness_url}/auth/line?ref={checkin_ref_code}&account={line_account_id}"
 
     return {
-        "qr_url":         qr_url,
-        "entry_route_id": entry_route["id"],
-        "ref_code":       ref_code,
-        "scenario_ids":   scenario_ids,
-        "tag_ids":        tag_ids,
+        "qr_url":           lp_qr_url,
+        "entry_route_id":   lp_route_id,
+        "ref_code":         lp_ref_code,
+        "checkin_qr_url":   checkin_qr_url,
+        "checkin_route_id": checkin_route_id,
+        "checkin_ref_code": checkin_ref_code,
+        "scenario_ids":     scenario_ids,
+        "tag_ids":          tag_ids,
     }
