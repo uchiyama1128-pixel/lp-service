@@ -259,10 +259,15 @@ async def post_line_setup(slug: str, request: Request):
     try:
         body = await request.json()
         line_token = body.get("line_token", "").strip()
+        channel_secret_input = body.get("channel_secret", "").strip()
         channel_id_input = body.get("channel_id", "").strip()
 
         if not line_token:
             raise HTTPException(status_code=400, detail="line_token は必須です")
+        if not channel_secret_input:
+            raise HTTPException(status_code=400, detail="channel_secret は必須です")
+        if not channel_id_input:
+            raise HTTPException(status_code=400, detail="channel_id は必須です")
 
         # hearing読み込み
         path = HEARING_DIR / f"{slug}.json"
@@ -270,19 +275,55 @@ async def post_line_setup(slug: str, request: Request):
             raise HTTPException(status_code=404, detail="LP情報が見つかりません")
         data = json.loads(path.read_text(encoding="utf-8"))
 
-        # チャネルIDからLINE HarnessのアカウントIDを解決
-        if channel_id_input and not data.get("line_account_id"):
+        shop_name_for_account = data.get("shop_name", slug)
+        harness_url_val = os.getenv("LINE_HARNESS_API_URL", "https://line-crm-worker.uchiyama1128.workers.dev")
+        harness_key_val = os.getenv("LINE_HARNESS_API_KEY", "")
+        harness_headers = {"Authorization": f"Bearer {harness_key_val}", "Content-Type": "application/json"}
+
+        # LINE Harnessにアカウントを自動登録（既存の場合は更新）
+        if harness_key_val and channel_id_input:
             try:
-                harness_accounts_res = httpx.get(
-                    f"{os.getenv('LINE_HARNESS_API_URL', 'https://line-crm-worker.uchiyama1128.workers.dev')}/api/line-accounts",
-                    headers={"Authorization": f"Bearer {os.getenv('LINE_HARNESS_API_KEY', '')}"},
+                # 既存アカウントを検索
+                accounts_res = httpx.get(
+                    f"{harness_url_val}/api/line-accounts",
+                    headers=harness_headers,
                     timeout=10,
                 )
-                if harness_accounts_res.is_success:
-                    for acc in harness_accounts_res.json().get("data", []):
+                existing_account_id = None
+                if accounts_res.is_success:
+                    for acc in accounts_res.json().get("data", []):
                         if str(acc.get("channelId", "")) == channel_id_input:
-                            data["line_account_id"] = acc["id"]
+                            existing_account_id = acc["id"]
                             break
+
+                if existing_account_id:
+                    # 既存アカウントのtoken/secretを更新
+                    httpx.put(
+                        f"{harness_url_val}/api/line-accounts/{existing_account_id}",
+                        headers=harness_headers,
+                        json={
+                            "channelAccessToken": line_token,
+                            "channelSecret": channel_secret_input,
+                            "name": shop_name_for_account,
+                        },
+                        timeout=10,
+                    )
+                    data["line_account_id"] = existing_account_id
+                else:
+                    # 新規アカウント登録
+                    create_res = httpx.post(
+                        f"{harness_url_val}/api/line-accounts",
+                        headers=harness_headers,
+                        json={
+                            "channelId": channel_id_input,
+                            "name": shop_name_for_account,
+                            "channelAccessToken": line_token,
+                            "channelSecret": channel_secret_input,
+                        },
+                        timeout=10,
+                    )
+                    if create_res.is_success:
+                        data["line_account_id"] = create_res.json()["data"]["id"]
             except Exception:
                 pass
 
@@ -312,8 +353,8 @@ async def post_line_setup(slug: str, request: Request):
         revisit_coupon_timing = data.get("revisit_coupon_timing", "14")
 
         # LINE Harness APIでクライアント専用フォームを作成
-        harness_url = os.getenv("LINE_HARNESS_API_URL", "https://line-crm-worker.uchiyama1128.workers.dev")
-        harness_key = os.getenv("LINE_HARNESS_API_KEY", "")
+        harness_url = harness_url_val
+        harness_key = harness_key_val
         form_id = data.get("_form_id", "")
 
         form_description = json.dumps({
@@ -385,7 +426,7 @@ async def post_line_setup(slug: str, request: Request):
         # ── シナリオ・タグ・専用QR 自動生成 ──────────────────────────
         scenario_result = None
         scenario_error = ""
-        harness_url_base = os.getenv("LINE_HARNESS_API_URL", "https://line-crm-worker.uchiyama1128.workers.dev")
+        harness_url_base = harness_url_val
         if harness_key and data.get("line_account_id"):
             try:
                 owner_name = data.get("owner_name") or data.get("doctor_name") or shop_name

@@ -208,16 +208,15 @@
 
       <!-- LINE設定 -->
       <div class="section">
-        <div class="section-title">LINEチャネルアクセストークン</div>
+        <div class="section-title">LINE チャンネル情報</div>
 
         <div class="token-guide">
           <p class="guide-title">取得手順</p>
           <ol>
             <li><a href="https://developers.line.biz/console/" target="_blank" rel="noopener">LINE Developers Console</a> を開く</li>
             <li>該当のチャネルを選択</li>
-            <li>「Messaging API設定」タブをクリック</li>
-            <li>ページ下部の「チャネルアクセストークン（長期）」の「発行」をクリック</li>
-            <li>表示されたトークンをコピーして以下に貼り付ける</li>
+            <li>「チャネル基本設定」タブ → <strong>チャネルID</strong>（数字）と<strong>チャネルシークレット</strong>をコピー</li>
+            <li>「Messaging API設定」タブ → ページ下部の「チャネルアクセストークン（長期）」の「発行」をクリックしてコピー</li>
           </ol>
           <a href="https://developers.line.biz/console/" target="_blank" rel="noopener" class="btn-console">
             LINE Developers Console を開く →
@@ -225,12 +224,20 @@
         </div>
 
         <div class="field" style="margin-top:16px;">
-          <label>チャネルアクセストークン <span class="req">*</span></label>
+          <label>チャネルアクセストークン <span class="req">*</span>
+            <span style="font-weight:normal; font-size:12px; color:#6b7280;">（Messaging API設定タブ → チャネルアクセストークン（長期））</span>
+          </label>
           <input type="password" id="lineToken" placeholder="発行したトークンをここに貼り付け" required>
         </div>
         <div class="field" style="margin-top:12px;">
+          <label>チャネルシークレット <span class="req">*</span>
+            <span style="font-weight:normal; font-size:12px; color:#6b7280;">（チャネル基本設定タブ → チャネルシークレット）</span>
+          </label>
+          <input type="password" id="lineChannelSecret" placeholder="32文字の英数字" required>
+        </div>
+        <div class="field" style="margin-top:12px;">
           <label>チャネルID <span class="req">*</span>
-            <span style="font-weight:normal; font-size:12px; color:#6b7280;">（LINE Developersの「チャネル基本設定」タブに記載の数字）</span>
+            <span style="font-weight:normal; font-size:12px; color:#6b7280;">（チャネル基本設定タブ → チャネルID（数字））</span>
           </label>
           <input type="text" id="lineChannelId" placeholder="例: 2009518632" pattern="[0-9]+" required>
         </div>
@@ -287,8 +294,10 @@
       errorMsg.classList.remove('show');
 
       const lineToken = document.getElementById('lineToken').value.trim();
+      const lineChannelSecret = document.getElementById('lineChannelSecret').value.trim();
       const lineChannelId = document.getElementById('lineChannelId').value.trim();
       if (!lineToken) { showError('チャネルアクセストークンを入力してください'); return; }
+      if (!lineChannelSecret) { showError('チャネルシークレットを入力してください'); return; }
       if (!lineChannelId) { showError('チャネルIDを入力してください'); return; }
 
       btn.disabled = true;
@@ -298,7 +307,7 @@
         const res = await fetch(`/${slug}/line-setup`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ line_token: lineToken, channel_id: lineChannelId }),
+          body: JSON.stringify({ line_token: lineToken, channel_secret: lineChannelSecret, channel_id: lineChannelId }),
         });
         const data = await res.json();
         if (!data.success) throw new Error(data.detail || '設置に失敗しました');
