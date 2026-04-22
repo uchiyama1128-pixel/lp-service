@@ -455,6 +455,7 @@ async def post_line_setup(slug: str, request: Request):
                 data["_entry_route_id"]   = scenario_result["entry_route_id"]
                 data["_checkin_qr_url"]   = scenario_result["checkin_qr_url"]
                 data["_checkin_route_id"] = scenario_result["checkin_route_id"]
+                data["_scenario_ids"]     = list(scenario_result["scenario_ids"].values())
             except Exception as e:
                 scenario_error = str(e)
 
@@ -497,42 +498,40 @@ async def get_dashboard(slug: str, token: str):
     harness_key_val = os.getenv("LINE_HARNESS_API_KEY", "")
     headers = {"Authorization": f"Bearer {harness_key_val}", "Content-Type": "application/json"}
 
-    # シナリオステップ取得
+    # シナリオステップ取得（このクライアントのIDのみ）
     scenarios_html = ""
-    if harness_key_val and data.get("line_account_id"):
+    scenario_ids = data.get("_scenario_ids", [])
+    if harness_key_val and scenario_ids:
         try:
-            res = httpx.get(
-                f"{harness_url_val}/api/scenarios",
-                headers=headers,
-                params={"lineAccountId": data["line_account_id"]},
-                timeout=10,
-            )
-            if res.is_success:
-                for s in res.json().get("data", []):
-                    steps_res = httpx.get(
-                        f"{harness_url_val}/api/scenarios/{s['id']}/steps",
-                        headers=headers,
-                        timeout=10,
-                    )
-                    steps_html = ""
-                    if steps_res.is_success:
-                        for st in sorted(steps_res.json().get("data", []), key=lambda x: x.get("stepOrder", 0)):
-                            delay = st.get("delayMinutes", 0)
-                            delay_label = "即時" if delay == 0 else f"{delay // 1440}日後 {st.get('deliveryHour', '')}時"
-                            content = st.get("messageContent", "").replace("\n", "<br>")
-                            steps_html += f"""<div class="step-item">
-                              <span class="step-badge">STEP {st.get('stepOrder', '')}</span>
-                              <span class="step-timing">{delay_label}</span>
-                              <div class="step-content">{content}</div>
-                            </div>"""
-                    trigger = s.get("triggerType", "")
-                    trigger_label = {"friend_add": "友だち追加時", "tag_added": "タグ付与時"}.get(trigger, trigger)
-                    scenarios_html += f"""<details class="scenario-block">
-                      <summary>{s['name']} <span class="trigger-badge">{trigger_label}</span></summary>
-                      <div class="steps-wrap">{steps_html}</div>
-                    </details>"""
+            for sid in scenario_ids:
+                res = httpx.get(
+                    f"{harness_url_val}/api/scenarios/{sid}",
+                    headers=headers,
+                    timeout=10,
+                )
+                if not res.is_success:
+                    continue
+                s = res.json().get("data", {})
+                steps_html = ""
+                for st in sorted(s.get("steps", []), key=lambda x: x.get("stepOrder", 0)):
+                    delay = st.get("delayMinutes", 0)
+                    delay_label = "即時" if delay == 0 else f"{delay // 1440}日後 {st.get('deliveryHour') or ''}時"
+                    content = st.get("messageContent", "").replace("\n", "<br>")
+                    steps_html += f"""<div class="step-item">
+                      <span class="step-badge">STEP {st.get('stepOrder', '')}</span>
+                      <span class="step-timing">{delay_label}</span>
+                      <div class="step-content">{content}</div>
+                    </div>"""
+                trigger = s.get("triggerType", "")
+                trigger_label = {"friend_add": "友だち追加時", "tag_added": "タグ付与時"}.get(trigger, trigger)
+                scenarios_html += f"""<details class="scenario-block">
+                  <summary>{s.get('name', '')} <span class="trigger-badge">{trigger_label}</span></summary>
+                  <div class="steps-wrap">{steps_html}</div>
+                </details>"""
         except Exception:
             scenarios_html = "<p style='color:#888;font-size:13px;'>シナリオ情報を取得できませんでした</p>"
+    elif not scenario_ids:
+        scenarios_html = "<p style='color:#888;font-size:13px;'>LINE設定完了後にシナリオが表示されます</p>"
 
     # QRコードURL
     lp_qr_url      = data.get("_qr_url", "")
