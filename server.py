@@ -7,6 +7,8 @@ import shutil
 import urllib.parse
 from pathlib import Path
 
+import httpx
+
 import anthropic
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile, Request
