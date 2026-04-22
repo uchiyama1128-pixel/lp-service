@@ -369,6 +369,19 @@ async def post_line_setup(slug: str, request: Request):
             image_path=str(RICHMENU_IMAGE),
         )
 
+        # ── Webhook URL を LINE チャンネルに自動設定 ─────────────────
+        harness_worker_url = os.getenv("LINE_HARNESS_API_URL", "https://line-crm-worker.uchiyama1128.workers.dev")
+        webhook_endpoint = f"{harness_worker_url}/webhook"
+        try:
+            httpx.put(
+                "https://api.line.me/v2/bot/channel/webhook/endpoint",
+                headers={"Authorization": f"Bearer {line_token}", "Content-Type": "application/json"},
+                json={"webhookEndpointUrl": webhook_endpoint},
+                timeout=10,
+            )
+        except Exception:
+            pass  # webhook設定失敗は致命的ではない
+
         # ── シナリオ・タグ・専用QR 自動生成 ──────────────────────────
         scenario_result = None
         scenario_error = ""
