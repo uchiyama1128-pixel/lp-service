@@ -228,6 +228,12 @@
           <label>チャネルアクセストークン <span class="req">*</span></label>
           <input type="password" id="lineToken" placeholder="発行したトークンをここに貼り付け" required>
         </div>
+        <div class="field" style="margin-top:12px;">
+          <label>チャネルID <span class="req">*</span>
+            <span style="font-weight:normal; font-size:12px; color:#6b7280;">（LINE Developersの「チャネル基本設定」タブに記載の数字）</span>
+          </label>
+          <input type="text" id="lineChannelId" placeholder="例: 2009518632" pattern="[0-9]+" required>
+        </div>
       </div>
 
       <button class="btn-submit" id="submitBtn" onclick="handleSubmit()">
@@ -238,9 +244,22 @@
     <!-- 完了画面 -->
     <div class="result" id="resultArea">
       <div class="icon">✅</div>
-      <h2>リッチメニューの設置完了！</h2>
-      <p>LINEアプリを開いて、トーク画面下部にリッチメニューが表示されているか確認してください。</p>
+      <h2>LINE設定が完了しました！</h2>
+      <p>リッチメニューの設置と、ステップ配信シナリオの自動生成が完了しました。</p>
       <div class="richmenu-id" id="richMenuIdDisp"></div>
+
+      <!-- 専用QRコード -->
+      <div id="qrSection" style="display:none; margin-top:24px; padding:20px; background:#f0fdf4; border-radius:12px; border:1px solid #86efac;">
+        <h3 style="margin:0 0 8px; color:#166534; font-size:16px;">📲 友だち追加専用QRコード</h3>
+        <p style="margin:0 0 12px; color:#166534; font-size:13px;">このQRコードからLINEを追加した方にだけ、シナリオA（新規LP経由）が自動スタートします。<br>公式アカウントのQRコードとは別に使用してください。</p>
+        <div id="qrCodeImg" style="background:#fff; display:inline-block; padding:16px; border-radius:8px; margin-bottom:12px;"></div>
+        <div>
+          <a id="qrUrlLink" href="#" target="_blank" style="font-size:13px; color:#16a34a; word-break:break-all;"></a>
+        </div>
+        <div style="margin-top:8px; font-size:12px; color:#6b7280;">ref code: <span id="refCodeDisp" style="font-family:monospace;"></span></div>
+      </div>
+
+      <div id="scenarioError" style="display:none; margin-top:16px; padding:12px; background:#fef2f2; border-radius:8px; border:1px solid #fca5a5; font-size:13px; color:#b91c1c;"></div>
     </div>
   </div>
 
@@ -268,19 +287,18 @@
       errorMsg.classList.remove('show');
 
       const lineToken = document.getElementById('lineToken').value.trim();
+      const lineChannelId = document.getElementById('lineChannelId').value.trim();
       if (!lineToken) { showError('チャネルアクセストークンを入力してください'); return; }
-
-      const homepageUrl = '';
-      const treatmentUrl = '';
+      if (!lineChannelId) { showError('チャネルIDを入力してください'); return; }
 
       btn.disabled = true;
-      btn.innerHTML = '<span class="spinner"></span>設置中...';
+      btn.innerHTML = '<span class="spinner"></span>設置中（シナリオ自動生成も行います）...';
 
       try {
         const res = await fetch(`/${slug}/line-setup`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ homepage_url: homepageUrl, treatment_url: treatmentUrl, line_token: lineToken }),
+          body: JSON.stringify({ line_token: lineToken, channel_id: lineChannelId }),
         });
         const data = await res.json();
         if (!data.success) throw new Error(data.detail || '設置に失敗しました');
@@ -288,6 +306,22 @@
         document.getElementById('formArea').style.display = 'none';
         document.getElementById('richMenuIdDisp').textContent = `richMenuId: ${data.rich_menu_id}`;
         document.getElementById('resultArea').classList.add('show');
+
+        // QRコード表示
+        if (data.qr_url) {
+          const qrSection = document.getElementById('qrSection');
+          const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(data.qr_url)}`;
+          document.getElementById('qrCodeImg').innerHTML = `<img src="${qrApiUrl}" width="200" height="200" alt="QRコード">`;
+          document.getElementById('qrUrlLink').href = data.qr_url;
+          document.getElementById('qrUrlLink').textContent = data.qr_url;
+          document.getElementById('refCodeDisp').textContent = data.ref_code;
+          qrSection.style.display = 'block';
+        }
+        if (data.scenario_error) {
+          const errEl = document.getElementById('scenarioError');
+          errEl.textContent = `シナリオ自動生成でエラーが発生しました: ${data.scenario_error}`;
+          errEl.style.display = 'block';
+        }
       } catch (e) {
         showError(e.message);
         btn.disabled = false;

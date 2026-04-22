@@ -21,6 +21,7 @@ from lp.generator import generate_lp_copy, SYSTEM_PROMPT
 from lp.html_builder import build_lp_html
 from lp.line_richmenu import setup_richmenu
 from lp.google_places import get_review_url
+from lp.scenario_builder import build_scenarios_for_client
 
 app = FastAPI(title="LP制作代行サービス")
 
@@ -258,8 +259,7 @@ async def post_line_setup(slug: str, request: Request):
     try:
         body = await request.json()
         line_token = body.get("line_token", "").strip()
-        homepage_url = body.get("homepage_url", "").strip()
-        treatment_url = body.get("treatment_url", "").strip()
+        channel_id_input = body.get("channel_id", "").strip()
 
         if not line_token:
             raise HTTPException(status_code=400, detail="line_token は必須です")
@@ -269,6 +269,22 @@ async def post_line_setup(slug: str, request: Request):
         if not path.exists():
             raise HTTPException(status_code=404, detail="LP情報が見つかりません")
         data = json.loads(path.read_text(encoding="utf-8"))
+
+        # チャネルIDからLINE HarnessのアカウントIDを解決
+        if channel_id_input and not data.get("line_account_id"):
+            try:
+                harness_accounts_res = httpx.get(
+                    f"{os.getenv('LINE_HARNESS_API_URL', 'https://line-crm-worker.uchiyama1128.workers.dev')}/api/line-accounts",
+                    headers={"Authorization": f"Bearer {os.getenv('LINE_HARNESS_API_KEY', '')}"},
+                    timeout=10,
+                )
+                if harness_accounts_res.is_success:
+                    for acc in harness_accounts_res.json().get("data", []):
+                        if str(acc.get("channelId", "")) == channel_id_input:
+                            data["line_account_id"] = acc["id"]
+                            break
+            except Exception:
+                pass
 
         shop_name = data.get("shop_name", slug)
         phone = data.get("phone", "")
@@ -353,6 +369,34 @@ async def post_line_setup(slug: str, request: Request):
             image_path=str(RICHMENU_IMAGE),
         )
 
+        # ── シナリオ・タグ・専用QR 自動生成 ──────────────────────────
+        scenario_result = None
+        scenario_error = ""
+        harness_url_base = os.getenv("LINE_HARNESS_API_URL", "https://line-crm-worker.uchiyama1128.workers.dev")
+        if harness_key and data.get("line_account_id"):
+            try:
+                owner_name = data.get("owner_name") or data.get("doctor_name") or shop_name
+                booking_url_for_scenario = booking_url or data.get("_lp_url", "")
+                survey_url_for_scenario = data.get("survey_url", "")
+                liff_url = os.getenv("LIFF_URL", "https://liff.line.me/2009607643-QGWpmKya")
+                scenario_result = build_scenarios_for_client(
+                    harness_url=harness_url_base,
+                    harness_key=harness_key,
+                    line_account_id=data["line_account_id"],
+                    shop_name=shop_name,
+                    owner_name=owner_name,
+                    booking_url=booking_url_for_scenario,
+                    survey_url=survey_url_for_scenario,
+                    review_url=google_review_url or "",
+                    form_url=review_form_url,
+                    slug=slug,
+                    liff_url=liff_url,
+                )
+                data["_qr_url"] = scenario_result["qr_url"]
+                data["_entry_route_id"] = scenario_result["entry_route_id"]
+            except Exception as e:
+                scenario_error = str(e)
+
         # 結果を保存
         data["_rich_menu_id"] = rich_menu_id
         data["_form_id"] = form_id
@@ -364,6 +408,9 @@ async def post_line_setup(slug: str, request: Request):
             "rich_menu_id": rich_menu_id,
             "form_id": form_id,
             "google_review_url": google_review_url or "（Google Places APIキー未設定のため未取得）",
+            "qr_url": scenario_result["qr_url"] if scenario_result else None,
+            "ref_code": scenario_result["ref_code"] if scenario_result else None,
+            "scenario_error": scenario_error or None,
         }
 
     except HTTPException:
