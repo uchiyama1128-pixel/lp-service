@@ -368,6 +368,24 @@ async def post_line_setup(slug: str, request: Request):
         raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}\n{traceback.format_exc()}")
 
 
+@app.delete("/admin/clear-all-data")
+async def clear_all_data(secret: str = ""):
+    """全テストデータを削除（管理者専用・テスト後に削除すること）"""
+    if secret != os.getenv("ADMIN_SECRET", ""):
+        raise HTTPException(status_code=403, detail="forbidden")
+    deleted = []
+    for d in [HEARING_DIR, PHOTOS_DIR, OUTPUT_DIR]:
+        if d.exists():
+            for f in d.iterdir():
+                if f.is_file():
+                    f.unlink()
+                    deleted.append(f.name)
+                elif f.is_dir():
+                    shutil.rmtree(f)
+                    deleted.append(f.name)
+    return {"deleted": deleted, "count": len(deleted)}
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("server:app", host="0.0.0.0", port=8080, reload=False)
