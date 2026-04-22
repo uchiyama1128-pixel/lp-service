@@ -33,8 +33,8 @@ def _scenario_templates(shop_name: str, owner_name: str, booking_url: str,
     return [
         {
             "name": f"シナリオA｜新規LP経由（アンケート前）【{shop_name}】",
-            "triggerType": "tag_added",
-            "triggerTagName": tag_lp,
+            "triggerType": "friend_add",
+            "triggerTagName": None,
             "steps": [
                 {"stepOrder": 1, "delayMinutes": 0, "deliveryHour": None, "messageType": "text",
                  "messageContent": R("{{name}}さん、はじめまして。\n【院名】の【院長名】です。\n\nLINEへのご登録、ありがとうございます。\n\nこのLINEでは、お体のお悩みに役立つ情報や、来院された方限定のお得な情報をお届けしています。\n\nまず最初に、1つお願いがあります。\nよりお役に立てる情報をお届けするために、簡単なアンケートにご協力ください。\n\n所要時間は1〜2分ほどです。\n\n▼アンケートはこちら\n【アンケートURL】\n\nご回答いただいた方には、初回来院時に使えるクーポンをプレゼントしています。\nぜひご回答いただけると嬉しいです。")},
@@ -219,13 +219,30 @@ def build_scenarios_for_client(
         tag_existing=tag_names["existing"],
     )
 
+    # ── 既存シナリオ一覧取得（重複防止） ──────────────────────────
+    existing_scenarios_res = httpx.get(
+        f"{harness_url}/api/scenarios",
+        headers=headers,
+        params={"lineAccountId": line_account_id},
+        timeout=15,
+    )
+    existing_scenario_names: dict[str, str] = {}  # name → id
+    if existing_scenarios_res.is_success:
+        for s in existing_scenarios_res.json().get("data", []):
+            existing_scenario_names[s["name"]] = s["id"]
+
     # ── シナリオ + ステップ作成 ─────────────────────────────────────
     scenario_ids = {}
     for tmpl in templates:
+        # 同名シナリオが既存なら再利用
+        if tmpl["name"] in existing_scenario_names:
+            scenario_ids[tmpl["name"]] = existing_scenario_names[tmpl["name"]]
+            continue
+
         # triggerTagName → triggerTagId 解決
         trigger_tag_id = None
         for k, name in tag_names.items():
-            if name == tmpl["triggerTagName"]:
+            if name == tmpl.get("triggerTagName"):
                 trigger_tag_id = tag_ids[k]
                 break
         # 専用タグ以外（アンケート回答済み / 高評価 / 低評価）はIDなしで作成
