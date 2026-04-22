@@ -220,8 +220,20 @@
         <input type="tel" id="phone" placeholder="例：06-1234-5678">
       </div>
       <div class="field">
-        <label>LINE公式アカウントURL<span class="req">*</span></label>
+        <label>LINE公式アカウント</label>
+        <div class="radio-group" id="line-status-group">
+          <label><input type="radio" name="line_status" value="has" checked onchange="toggleLineUrl()"> すでに持っている</label>
+          <label><input type="radio" name="line_status" value="none" onchange="toggleLineUrl()"> まだ持っていない</label>
+        </div>
+      </div>
+      <div class="field" id="line-url-field">
+        <label>LINE公式アカウントURL</label>
         <input type="url" id="line_url" placeholder="例：https://lin.ee/xxxxxxx">
+      </div>
+      <div id="line-none-notice" style="display:none; background:#fff8e1; border:1px solid #ffcc02; border-radius:8px; padding:14px 16px; font-size:13px; line-height:1.8; margin-bottom:12px;">
+        <strong style="color:#b8860b;">📋 LINE公式アカウントの作成が必要です</strong><br>
+        LPが完成した後、LINE設定の手順書をお送りします。<br>
+        アカウント作成〜ステップ配信の設定まで丁寧にサポートしますのでご安心ください。
       </div>
       <div class="field">
         <label>予約フォームURL<span class="hint">お持ちの場合</span></label>
@@ -230,7 +242,7 @@
       <div class="field">
         <label>CTAボタンのリンク先<span class="req">*</span><span class="hint">すべて選択してください（複数選択可）</span></label>
         <div class="radio-group">
-          <label><input type="checkbox" name="cta_type" value="line" checked> LINE登録</label>
+          <label><input type="checkbox" name="cta_type" value="line" id="cta-line" checked> LINE登録</label>
           <label><input type="checkbox" name="cta_type" value="booking"> 予約フォーム</label>
           <label><input type="checkbox" name="cta_type" value="phone"> 電話</label>
         </div>
@@ -588,11 +600,23 @@
     <div class="step-header">
       <div class="step-num">STEP 6 / 6</div>
       <h2>キャッチコピーを選んでください</h2>
-      <p>AIが生成した候補からお好みのものを1つ選んでください</p>
+      <p>AIが生成した候補からお好みのものを選ぶか、自分で入力してください</p>
     </div>
 
     <div class="card" id="catchcopy-cards">
       <!-- JS で生成 -->
+    </div>
+
+    <div class="card" style="margin-top:12px;">
+      <div class="catchcopy-option" id="catchcopy-custom-option" style="flex-direction:column; align-items:flex-start; gap:8px;" onclick="selectCustomCatchcopy()">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <input type="radio" name="catchcopy" value="__custom__" id="cc-custom" style="width:18px;height:18px;accent-color:var(--primary);flex-shrink:0;">
+          <span style="font-size:14px; font-weight:700;">✏️ 自分でキャッチコピーを入力する</span>
+        </div>
+        <textarea id="custom-catchcopy-text" placeholder="例：10年悩んだ腰痛が、たった3回で楽になった理由" rows="2"
+          style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;resize:vertical;margin-top:4px;display:none;"
+          oninput="onCustomCatchcopyInput()"></textarea>
+      </div>
     </div>
 
     <div class="nav-buttons">
@@ -619,7 +643,7 @@
     <a id="lp-url" href="#" target="_blank" style="font-size:15px;color:#2C4A7C;word-break:break-all;"></a>
   </div>
 
-  <div style="margin-top:28px;background:#e8f5e9;border:2px solid #66bb6a;border-radius:14px;padding:24px;text-align:center;">
+  <div id="line-setup-section" style="margin-top:28px;background:#e8f5e9;border:2px solid #66bb6a;border-radius:14px;padding:24px;text-align:center;">
     <p style="font-size:13px;color:#2e7d32;font-weight:700;margin-bottom:4px;">STEP 2</p>
     <p style="font-size:16px;font-weight:700;color:#1b5e20;margin-bottom:8px;">このままLINEの設定に移りましょう</p>
     <p style="font-size:13px;color:#388e3c;margin-bottom:16px;line-height:1.6;">リッチメニューの設置・口コミフォームの自動作成など<br>LINEに必要な設定を一括で完了します（約1分）</p>
@@ -632,6 +656,35 @@
 </div>
 
 <script>
+// ===== LINE状態トグル =====
+function toggleLineUrl() {
+  const status = document.querySelector('input[name="line_status"]:checked')?.value;
+  const urlField = document.getElementById('line-url-field');
+  const noneNotice = document.getElementById('line-none-notice');
+  if (status === 'none') {
+    urlField.style.display = 'none';
+    noneNotice.style.display = 'block';
+  } else {
+    urlField.style.display = 'block';
+    noneNotice.style.display = 'none';
+  }
+}
+
+// ===== カスタムキャッチコピー =====
+function selectCustomCatchcopy() {
+  document.getElementById('cc-custom').checked = true;
+  const textarea = document.getElementById('custom-catchcopy-text');
+  textarea.style.display = 'block';
+  textarea.focus();
+  // 他の選択を解除
+  document.querySelectorAll('.catchcopy-option.selected').forEach(el => el.classList.remove('selected'));
+  document.getElementById('catchcopy-custom-option').classList.add('selected');
+}
+
+function onCustomCatchcopyInput() {
+  document.getElementById('cc-custom').checked = true;
+}
+
 // ===== URL プレビュー =====
 document.getElementById('url_slug').addEventListener('input', function() {
   const preview = document.getElementById('url-preview');
@@ -832,7 +885,13 @@ function validate(step) {
     if (!document.getElementById('url_slug').value.trim()) { alert('URL用スラッグを入力してください'); return false; }
     if (!document.getElementById('shop_type').value) { alert('業種を選択してください'); return false; }
     if (!document.getElementById('location').value.trim()) { alert('エリアを入力してください'); return false; }
-    if (!document.getElementById('line_url').value.trim()) { alert('LINE公式アカウントURLを入力してください'); return false; }
+    const lineStatus = document.querySelector('input[name="line_status"]:checked')?.value;
+    if (lineStatus !== 'none' && !document.getElementById('line_url').value.trim()) { alert('LINE公式アカウントURLを入力してください'); return false; }
+    if (lineStatus === 'none') {
+      // LINEなしの場合はCTA LINE登録チェックを外す
+      const ctaLine = document.getElementById('cta-line');
+      if (ctaLine) ctaLine.checked = false;
+    }
   }
   if (step === 2) {
     const menus = document.querySelectorAll('#menu-list .menu-row');
@@ -916,6 +975,7 @@ function collectHearing() {
     address:             get('address'),
     business_hours:      get('business_hours'),
     phone:               get('phone'),
+    line_status:         document.querySelector('input[name="line_status"]:checked')?.value || 'has',
     line_url:            get('line_url'),
     booking_url:         get('booking_url'),
     cta_type:            Array.from(document.querySelectorAll('input[name="cta_type"]:checked')).map(cb => cb.value),
@@ -1008,8 +1068,13 @@ async function submitForm() {
   formData.append('hearing', JSON.stringify(hearing));
 
   // 選択したキャッチコピーをセット
-  const selectedCopy = document.querySelector('input[name="catchcopy"]:checked')?.value;
+  let selectedCopy = document.querySelector('input[name="catchcopy"]:checked')?.value;
   if (!selectedCopy) { alert('キャッチコピーを1つ選んでください'); return; }
+  if (selectedCopy === '__custom__') {
+    const customText = document.getElementById('custom-catchcopy-text').value.trim();
+    if (!customText) { alert('キャッチコピーを入力してください'); return; }
+    selectedCopy = customText;
+  }
   hearing.selected_catchcopy = selectedCopy;
   formData.set('hearing', JSON.stringify(hearing));
 
@@ -1043,7 +1108,11 @@ async function submitForm() {
     } else {
       link.textContent = '（URL取得に失敗しました。LINEよりお問い合わせください）';
     }
-    if (data.line_setup_url) {
+    const lineStatus = document.querySelector('input[name="line_status"]:checked')?.value;
+    const lineSetupSection = document.getElementById('line-setup-section');
+    if (lineStatus === 'none') {
+      if (lineSetupSection) lineSetupSection.style.display = 'none';
+    } else if (data.line_setup_url) {
       document.getElementById('line-setup-btn').href = data.line_setup_url;
     }
   } catch (e) {
