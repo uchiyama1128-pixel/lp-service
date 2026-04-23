@@ -176,20 +176,11 @@ def _scenario_templates(shop_name: str, owner_name: str, booking_url: str,
     fc  = _flex_coupon(coupon_name, coupon_discount, booking_url)
     frc = _flex_revisit_coupon(revisit_coupon_name, revisit_coupon_discount, booking_url)
 
-    def _fb(body: str, btn_label: str, btn_url: str, color: str = "#2C4A7C") -> str:
-        """テキストボディ＋ボタンフッターのflex"""
-        return json.dumps({
-            "type": "bubble",
-            "body": {
-                "type": "box", "layout": "vertical", "spacing": "md",
-                "contents": [{"type": "text", "text": body, "wrap": True}]
-            },
-            "footer": {
-                "type": "box", "layout": "vertical",
-                "contents": [{"type": "button", "style": "primary", "color": color,
-                    "action": {"type": "uri", "label": btn_label, "uri": btn_url}}]
-            }
-        }, ensure_ascii=False)
+    _btn_survey  = _flex_button("アンケートに回答してクーポンを受け取る →", survey_url or "https://example.com/survey")
+    _btn_booking = _flex_button("今すぐ予約する →", booking_url or "https://example.com/booking")
+    _btn_form    = _flex_button("感想フォームに回答して次回クーポンを受け取る →", form_url or "https://example.com/form")
+    _btn_form_r  = _flex_button("感想フォームはこちら →", form_url or "https://example.com/form")
+    _btn_review  = _flex_button("Googleの口コミを投稿する →", review_url or "https://maps.google.com", color="#E65100")
 
     return [
         # ─── シナリオA｜新規LP経由（アンケート前） ───────────────────
@@ -198,25 +189,19 @@ def _scenario_templates(shop_name: str, owner_name: str, booking_url: str,
             "triggerType": "friend_add",
             "triggerTagName": None,
             "steps": [
-                {"stepOrder": 1, "delayMinutes": 0, "deliveryHour": None, "messageType": "flex",
-                 "messageContent": _fb(
-                     R("{{name}}さん、はじめまして。\n【院名】の【院長名】です。\n\nLINEへのご登録、ありがとうございます！\n\nご登録いただいた方全員に、初回来院時に使えるクーポンをプレゼントしています。\n\nクーポンを受け取るには、1〜2分の簡単なアンケートにご回答いただくだけ！\n\nぜひご協力ください。"),
-                     "アンケートに回答してクーポンを受け取る →",
-                     survey_url or "https://example.com/survey"
-                 )},
-                {"stepOrder": 2, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "flex",
-                 "messageContent": _fb(
-                     R("{{name}}さん、こんにちは。\n【院名】の【院長名】です。\n\n昨日ご案内したクーポン、まだお受け取りになっていませんか？\n\nアンケートへのご回答（1〜2分）でそのままお受け取りいただけます。"),
-                     "アンケートに回答してクーポンを受け取る →",
-                     survey_url or "https://example.com/survey"
-                 )},
-                {"stepOrder": 3, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "flex",
-                 "messageContent": _fb(
-                     R("{{name}}さん、【院長名】です。\n\nクーポンのご案内、最後のご連絡です。\n\nアンケートにご回答いただくだけでお受け取りいただけます。所要時間は1〜2分ほどです。"),
-                     "アンケートに回答してクーポンを受け取る →",
-                     survey_url or "https://example.com/survey"
-                 )},
-                {"stepOrder": 4, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "text",
+                {"stepOrder": 1, "delayMinutes": 0, "deliveryHour": None, "messageType": "text",
+                 "messageContent": R("{{name}}さん、はじめまして。\n【院名】の【院長名】です。\n\nLINEへのご登録、ありがとうございます！\n\nご登録いただいた方全員に、初回来院時に使えるクーポンをプレゼントしています。\n\nクーポンを受け取るには、1〜2分の簡単なアンケートにご回答いただくだけ！\n\nぜひご協力ください。")},
+                {"stepOrder": 2, "delayMinutes": 0, "deliveryHour": None, "messageType": "flex",
+                 "messageContent": _btn_survey},
+                {"stepOrder": 3, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "text",
+                 "messageContent": R("{{name}}さん、こんにちは。\n【院名】の【院長名】です。\n\n昨日ご案内したクーポン、まだお受け取りになっていませんか？\n\nアンケートへのご回答（1〜2分）でそのままお受け取りいただけます。")},
+                {"stepOrder": 4, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "flex",
+                 "messageContent": _btn_survey},
+                {"stepOrder": 5, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "text",
+                 "messageContent": R("{{name}}さん、【院長名】です。\n\nクーポンのご案内、最後のご連絡です。\n\nアンケートにご回答いただくだけでお受け取りいただけます。所要時間は1〜2分ほどです。")},
+                {"stepOrder": 6, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "flex",
+                 "messageContent": _btn_survey},
+                {"stepOrder": 7, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "text",
                  "messageContent": R("{{name}}さん、こんにちは。\n【院名】の【院長名】です。\n\n今日は少し、お体のことをお伝えさせてください。\n\n肩こりや腰痛は、「痛みがないから大丈夫」ではなく、気づかないうちに積み重なっているケースがほとんどです。\n\n特にデスクワークや立ち仕事が多い方は、定期的なケアを習慣にするだけで、体の変わり方が全然違ってきます。\n\n気になることがあれば、いつでもこちらのLINEにメッセージをください。")},
             ],
         },
@@ -230,42 +215,30 @@ def _scenario_templates(shop_name: str, owner_name: str, booking_url: str,
                  "messageContent": R("{{name}}さん、アンケートへのご回答ありがとうございます！\n\nお約束のクーポンをお届けします。\nこの機会にぜひ一度、体の状態を診させてください。")},
                 {"stepOrder": 2, "delayMinutes": 0, "deliveryHour": None, "messageType": "flex",
                  "messageContent": fc},
-                {"stepOrder": 3, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "flex",
-                 "messageContent": _fb(
-                     R("{{name}}さん、こんにちは。\n【院名】の【院長名】です。\n\n最近、こんなことはありませんか？\n\n・朝起きたとき、体が重い\n・夕方になると肩や首がパンパンになる\n・マッサージに行っても、しばらくするとまた戻る\n\nこれらは「疲れているから」ではなく、体のバランスが崩れているサインです。\n\nクーポンを使って、一度体験してみませんか？"),
-                     "今すぐ予約する →",
-                     booking_url or "https://example.com/booking"
-                 )},
+                {"stepOrder": 3, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "text",
+                 "messageContent": R("{{name}}さん、こんにちは。\n【院名】の【院長名】です。\n\n最近、こんなことはありませんか？\n\n・朝起きたとき、体が重い\n・夕方になると肩や首がパンパンになる\n・マッサージに行っても、しばらくするとまた戻る\n\nこれらは「疲れているから」ではなく、体のバランスが崩れているサインです。\n\nクーポンを使って、一度体験してみませんか？")},
                 {"stepOrder": 4, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "flex",
-                 "messageContent": _fb(
-                     R("{{name}}さん、こんにちは。\n\n体のお悩みを抱えたまま毎日を過ごすのは、思っている以上に消耗するものです。\n\n実際にご来院された方からは、\n\n「あんなに悩んでいたのに、なぜもっと早く来なかったんだろう」\n\nという言葉をよくいただきます。\n\nクーポンの期限もあと少しです。"),
-                     "今すぐ予約する →",
-                     booking_url or "https://example.com/booking"
-                 )},
-                {"stepOrder": 5, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "flex",
-                 "messageContent": _fb(
-                     R("{{name}}さん、こんにちは。\n\n「行きたいとは思っているけれど、なんとなく先延ばし…」\n\nそういう方、実はとても多いです。最初の一歩が一番難しいと思いますが、ご来院いただいた方のほぼ全員が「来てよかった」とおっしゃっています。"),
-                     "今すぐ予約する →",
-                     booking_url or "https://example.com/booking"
-                 )},
+                 "messageContent": _btn_booking},
+                {"stepOrder": 5, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "text",
+                 "messageContent": R("{{name}}さん、こんにちは。\n\n体のお悩みを抱えたまま毎日を過ごすのは、思っている以上に消耗するものです。\n\n実際にご来院された方からは、\n\n「あんなに悩んでいたのに、なぜもっと早く来なかったんだろう」\n\nという言葉をよくいただきます。\n\nクーポンの期限もあと少しです。")},
                 {"stepOrder": 6, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "flex",
-                 "messageContent": _fb(
-                     R("{{name}}さん、こんにちは。\n\nクーポンの期限が明日までとなりました。\n\nもし予定が合わない日があれば、お気軽に相談してください。日程の調整もできます。"),
-                     "今すぐ予約する →",
-                     booking_url or "https://example.com/booking"
-                 )},
-                {"stepOrder": 7, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "flex",
-                 "messageContent": _fb(
-                     R("{{name}}さん、こんにちは。\n\nお送りしていたクーポン、実は本日が最終日です。\n\n「行こうと思っていたけど、まだで…」という方、今日がラストチャンスです。"),
-                     "今すぐ予約する →",
-                     booking_url or "https://example.com/booking"
-                 )},
+                 "messageContent": _btn_booking},
+                {"stepOrder": 7, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "text",
+                 "messageContent": R("{{name}}さん、こんにちは。\n\n「行きたいとは思っているけれど、なんとなく先延ばし…」\n\nそういう方、実はとても多いです。最初の一歩が一番難しいと思いますが、ご来院いただいた方のほぼ全員が「来てよかった」とおっしゃっています。")},
                 {"stepOrder": 8, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "flex",
-                 "messageContent": _fb(
-                     R("{{name}}さん、こんにちは。\n\n少し時間が経ちましたが、改めてご案内させてください。\n\n体のお悩みは、放置するほど改善に時間がかかるケースが多いです。早めにご来院いただくほど、回復も早くなります。"),
-                     "今すぐ予約する →",
-                     booking_url or "https://example.com/booking"
-                 )},
+                 "messageContent": _btn_booking},
+                {"stepOrder": 9, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "text",
+                 "messageContent": R("{{name}}さん、こんにちは。\n\nクーポンの期限が明日までとなりました。\n\nもし予定が合わない日があれば、お気軽に相談してください。日程の調整もできます。")},
+                {"stepOrder": 10, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "flex",
+                 "messageContent": _btn_booking},
+                {"stepOrder": 11, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "text",
+                 "messageContent": R("{{name}}さん、こんにちは。\n\nお送りしていたクーポン、実は本日が最終日です。\n\n「行こうと思っていたけど、まだで…」という方、今日がラストチャンスです。")},
+                {"stepOrder": 12, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "flex",
+                 "messageContent": _btn_booking},
+                {"stepOrder": 13, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "text",
+                 "messageContent": R("{{name}}さん、こんにちは。\n\n少し時間が経ちましたが、改めてご案内させてください。\n\n体のお悩みは、放置するほど改善に時間がかかるケースが多いです。早めにご来院いただくほど、回復も早くなります。")},
+                {"stepOrder": 14, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "flex",
+                 "messageContent": _btn_booking},
             ],
         },
         # ─── シナリオC｜初来院チェックイン ────────────────────────────
@@ -281,13 +254,13 @@ def _scenario_templates(shop_name: str, owner_name: str, booking_url: str,
                 {"stepOrder": 3, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "text",
                  "messageContent": R("{{name}}さん、本日はご来院いただきありがとうございました。\n\nお体の調子はいかがでしょうか？\n\n施術を受けての感想を、ぜひ聞かせてください。\nご回答いただいた方全員に、次回来院時に使えるクーポンをプレゼントしています。")},
                 {"stepOrder": 4, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "flex",
-                 "messageContent": _flex_button("感想フォームに回答して次回クーポンを受け取る →", form_url or "https://example.com/form"),
+                 "messageContent": _btn_form,
                  "conditionType": "tag_not_exists", "conditionValue": "__REVIEW_COUPON_TAG__", "nextStepOnFalse": 5},
                 {"stepOrder": 5, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "text",
                  "messageContent": R("{{name}}さん、こんにちは。\n昨日ご案内した感想フォーム、まだでしたらこちらからどうぞ。\n\nご回答いただいた方全員に、次回来院クーポンをお届けしています。"),
                  "conditionType": "tag_not_exists", "conditionValue": "__REVIEW_COUPON_TAG__", "nextStepOnFalse": 6},
                 {"stepOrder": 6, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "flex",
-                 "messageContent": _flex_button("感想フォームはこちら →", form_url or "https://example.com/form"),
+                 "messageContent": _btn_form_r,
                  "conditionType": "tag_not_exists", "conditionValue": "__REVIEW_COUPON_TAG__", "nextStepOnFalse": 7},
                 {"stepOrder": 7, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "text",
                  "messageContent": R("{{name}}さん、こんにちは。\nご来院から3日が経ちました。お体の調子はいかがでしょうか？\n\n施術の効果を長持ちさせるために、自宅でできるケアをご紹介します。\n\n【簡単セルフケア】\n・肩をゆっくり後ろに大きく回す（10回）\n・首を左右にゆっくり倒して10秒キープ（各1回）\n・仰向けで膝を抱えて、腰をやさしくストレッチ（30秒）\n\n無理のない範囲で、毎日続けてみてください。")},
@@ -298,7 +271,7 @@ def _scenario_templates(shop_name: str, owner_name: str, booking_url: str,
                 {"stepOrder": 10, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "text",
                  "messageContent": R("{{name}}さん、こんにちは。\n\nご来院から2週間が経ちました。\n\n{{name}}さんの体の状態から見ると、2〜3週間以内に一度ご来院いただくと施術の効果がより定着しやすくなります。")},
                 {"stepOrder": 11, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "flex",
-                 "messageContent": _flex_button("今すぐ予約する →", booking_url or "https://example.com/booking")},
+                 "messageContent": _btn_booking},
             ],
         },
         # ─── シナリオC-分岐A｜口コミ候補（星4〜5） ─────────────────
@@ -314,7 +287,7 @@ def _scenario_templates(shop_name: str, owner_name: str, booking_url: str,
                 {"stepOrder": 3, "delayMinutes": 0, "deliveryHour": None, "messageType": "text",
                  "messageContent": R("一つお願いがあります。\n\n先ほどフォームに入力していただいた内容を、そのままGoogleにもコピーして貼り付けていただけますか？\n\n新たに文章を考える必要はありません。貼り付けるだけなので10秒ほどで完了します。")},
                 {"stepOrder": 4, "delayMinutes": 0, "deliveryHour": None, "messageType": "flex",
-                 "messageContent": _flex_button("Googleの口コミを投稿する →", review_url or "https://maps.google.com", color="#E65100")},
+                 "messageContent": _btn_review},
             ],
         },
         # ─── シナリオC-分岐B｜改善フィードバック（星1〜3） ──────────
@@ -343,13 +316,13 @@ def _scenario_templates(shop_name: str, owner_name: str, booking_url: str,
                  "messageContent": R("{{name}}さん、本日もご来院いただきありがとうございました。\n\nお体の調子はいかがでしょうか？\n\n同じようなお悩みを抱えて、どこに行けばいいか迷っている方の参考に、{{name}}さんの体験を口コミで教えていただけませんか？\n\nご回答いただいた方全員に、次回来院クーポンをお届けしています。"),
                  "conditionType": "tag_not_exists", "conditionValue": "__REVIEW_COUPON_TAG__", "nextStepOnFalse": 3},
                 {"stepOrder": 3, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "flex",
-                 "messageContent": _flex_button("感想フォームに回答して次回クーポンを受け取る →", form_url or "https://example.com/form"),
+                 "messageContent": _btn_form,
                  "conditionType": "tag_not_exists", "conditionValue": "__REVIEW_COUPON_TAG__", "nextStepOnFalse": 4},
                 {"stepOrder": 4, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "text",
                  "messageContent": R("{{name}}さん、こんにちは。\n\n昨日ご案内した感想フォーム、まだでしたらこちらからどうぞ。\n\n{{name}}さんの声が、誰かの背中を押すかもしれません。"),
                  "conditionType": "tag_not_exists", "conditionValue": "__REVIEW_COUPON_TAG__", "nextStepOnFalse": 5},
                 {"stepOrder": 5, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "flex",
-                 "messageContent": _flex_button("感想フォームはこちら →", form_url or "https://example.com/form"),
+                 "messageContent": _btn_form_r,
                  "conditionType": "tag_not_exists", "conditionValue": "__REVIEW_COUPON_TAG__", "nextStepOnFalse": 6},
                 {"stepOrder": 6, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "text",
                  "messageContent": R("{{name}}さん、こんにちは。\nご来院から3日が経ちました。お体の調子はいかがでしょうか？\n\n自宅でできる簡単なケアをご紹介します。\n\n・肩をゆっくり後ろに大きく回す（10回）\n・首を左右にゆっくり倒して10秒キープ（各1回）\n・仰向けで膝を抱えて、腰をやさしくストレッチ（30秒）\n\n何かあればいつでもご連絡ください。")},
@@ -360,7 +333,7 @@ def _scenario_templates(shop_name: str, owner_name: str, booking_url: str,
                 {"stepOrder": 9, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "text",
                  "messageContent": R("{{name}}さん、こんにちは。\n\nご来院から2週間が経ちました。\n\n定期的なケアのタイミングとして、そろそろ一度ご来院いただくのがベストな時期です。")},
                 {"stepOrder": 10, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "flex",
-                 "messageContent": _flex_button("今すぐ予約する →", booking_url or "https://example.com/booking")},
+                 "messageContent": _btn_booking},
             ],
         },
     ]
