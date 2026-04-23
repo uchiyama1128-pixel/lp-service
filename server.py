@@ -438,6 +438,10 @@ async def post_line_setup(slug: str, request: Request):
                 booking_url_for_scenario = booking_url or data.get("_lp_url", "")
                 survey_url_for_scenario = data.get("survey_url", "")
                 liff_url = os.getenv("LIFF_URL", "https://liff.line.me/2009607643-QGWpmKya")
+                coupon_title    = data.get("coupon_title", "初回限定クーポン")
+                coupon_orig     = data.get("coupon_original_price", "")
+                coupon_price_v  = data.get("coupon_price", "")
+                coupon_disc_str = f"通常{coupon_orig}→{coupon_price_v}" if (coupon_orig and coupon_price_v) else coupon_price_v
                 scenario_result = build_scenarios_for_client(
                     harness_url=harness_url_base,
                     harness_key=harness_key,
@@ -450,6 +454,10 @@ async def post_line_setup(slug: str, request: Request):
                     form_url=review_form_url,
                     slug=slug,
                     liff_url=liff_url,
+                    coupon_name=coupon_title,
+                    coupon_discount=coupon_disc_str,
+                    revisit_coupon_name=revisit_coupon_name,
+                    revisit_coupon_discount=revisit_coupon_discount,
                 )
                 data["_qr_url"]           = scenario_result["qr_url"]
                 data["_entry_route_id"]   = scenario_result["entry_route_id"]
