@@ -190,7 +190,7 @@ def _scenario_templates(shop_name: str, owner_name: str, booking_url: str,
             "triggerTagName": None,
             "steps": [
                 {"stepOrder": 1, "delayMinutes": 0, "deliveryHour": None, "messageType": "text",
-                 "messageContent": R("{{name}}さん、はじめまして。\n【院名】の【院長名】です。\n\nLINEへのご登録、ありがとうございます！\n\nご登録いただいた方全員に、初回来院時に使えるクーポンをプレゼントしています。\n\nクーポンを受け取るには、1〜2分の簡単なアンケートにご回答いただくだけ！\n\nぜひご協力ください。")},
+                 "messageContent": R("{{name}}さん、はじめまして。\n【院名】の【院長名】です。\n\nLINEへのご登録、ありがとうございます！\n\nご登録いただいた方全員に、初回来院時に使えるクーポンをプレゼントしています。\n\nクーポンを受け取るには、1〜2分の簡単なアンケートにご回答いただくだけ！\n\nぜひお受け取りください。")},
                 {"stepOrder": 2, "delayMinutes": 0, "deliveryHour": None, "messageType": "flex",
                  "messageContent": _btn_survey},
                 {"stepOrder": 3, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "text",
