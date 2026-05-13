@@ -86,16 +86,16 @@
       <div class="section-title">初回クーポン情報</div>
       <p class="hint" style="margin-bottom:14px;">友だち追加時にお届けするクーポンです</p>
       <div class="field">
-        <label>クーポン名 <span class="opt">任意</span></label>
+        <label>クーポン名 <span class="req">*</span></label>
         <input type="text" id="coupon_title" placeholder="例：初回体験コース50%OFFクーポン">
       </div>
       <div class="row2">
         <div class="field">
-          <label>通常価格 <span class="opt">任意</span></label>
+          <label>通常価格 <span class="req">*</span></label>
           <input type="text" id="coupon_original_price" placeholder="例：6,600円">
         </div>
         <div class="field">
-          <label>クーポン価格 <span class="opt">任意</span></label>
+          <label>クーポン価格 <span class="req">*</span></label>
           <input type="text" id="coupon_price" placeholder="例：3,300円">
         </div>
       </div>
@@ -107,26 +107,26 @@
       <p class="hint" style="margin-bottom:14px;">来院後に感想フォームへ回答してくれた方へのクーポンです</p>
       <div class="row2">
         <div class="field">
-          <label>感想クーポン名 <span class="opt">任意</span></label>
+          <label>感想クーポン名 <span class="req">*</span></label>
           <input type="text" id="review_coupon_name" placeholder="例：次回来院クーポン">
         </div>
         <div class="field">
-          <label>感想クーポン割引 <span class="opt">任意</span></label>
+          <label>感想クーポン割引 <span class="req">*</span></label>
           <input type="text" id="review_coupon_discount" placeholder="例：500円OFF">
         </div>
       </div>
       <div class="row2">
         <div class="field">
-          <label>再来院クーポン名 <span class="opt">任意</span></label>
+          <label>再来院クーポン名 <span class="req">*</span></label>
           <input type="text" id="revisit_coupon_name" placeholder="例：再来院クーポン">
         </div>
         <div class="field">
-          <label>再来院クーポン割引 <span class="opt">任意</span></label>
+          <label>再来院クーポン割引 <span class="req">*</span></label>
           <input type="text" id="revisit_coupon_discount" placeholder="例：10%OFF">
         </div>
       </div>
       <div class="field">
-        <label>再来院クーポン送付タイミング <span class="opt">任意</span></label>
+        <label>再来院クーポン送付タイミング</label>
         <select id="revisit_coupon_timing">
           <option value="7">来院から7日後</option>
           <option value="14" selected>来院から14日後</option>
@@ -150,6 +150,21 @@
       const shop_name = document.getElementById('shop_name').value.trim();
       if (!shop_name) { showError('店名・院名を入力してください'); return; }
 
+      const coupon_title          = document.getElementById('coupon_title').value.trim();
+      const coupon_original_price = document.getElementById('coupon_original_price').value.trim();
+      const coupon_price          = document.getElementById('coupon_price').value.trim();
+      const review_coupon_name    = document.getElementById('review_coupon_name').value.trim();
+      const review_coupon_discount= document.getElementById('review_coupon_discount').value.trim();
+      const revisit_coupon_name   = document.getElementById('revisit_coupon_name').value.trim();
+      const revisit_coupon_discount=document.getElementById('revisit_coupon_discount').value.trim();
+      if (!coupon_title)           { showError('初回クーポン名を入力してください'); return; }
+      if (!coupon_original_price)  { showError('初回クーポンの通常価格を入力してください'); return; }
+      if (!coupon_price)           { showError('初回クーポンのクーポン価格を入力してください'); return; }
+      if (!review_coupon_name)     { showError('感想クーポン名を入力してください'); return; }
+      if (!review_coupon_discount) { showError('感想クーポンの割引を入力してください'); return; }
+      if (!revisit_coupon_name)    { showError('再来院クーポン名を入力してください'); return; }
+      if (!revisit_coupon_discount){ showError('再来院クーポンの割引を入力してください'); return; }
+
       btn.disabled = true;
       btn.innerHTML = '<span class="spinner"></span>保存中...';
 
@@ -161,14 +176,14 @@
         lp_url:                  document.getElementById('lp_url').value.trim(),
         booking_url:             document.getElementById('booking_url').value.trim(),
         coupon: {
-          title:          document.getElementById('coupon_title').value.trim(),
-          original_price: document.getElementById('coupon_original_price').value.trim(),
-          coupon_price:   document.getElementById('coupon_price').value.trim(),
+          title:          coupon_title,
+          original_price: coupon_original_price,
+          coupon_price:   coupon_price,
         },
-        review_coupon_name:      document.getElementById('review_coupon_name').value.trim(),
-        review_coupon_discount:  document.getElementById('review_coupon_discount').value.trim(),
-        revisit_coupon_name:     document.getElementById('revisit_coupon_name').value.trim(),
-        revisit_coupon_discount: document.getElementById('revisit_coupon_discount').value.trim(),
+        review_coupon_name,
+        review_coupon_discount,
+        revisit_coupon_name,
+        revisit_coupon_discount,
         revisit_coupon_timing:   document.getElementById('revisit_coupon_timing').value,
       };
 
