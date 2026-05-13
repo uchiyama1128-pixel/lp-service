@@ -790,6 +790,73 @@ async def get_dashboard(slug: str, token: str):
     return html
 
 
+@app.get("/{slug}/customers/{token}")
+async def get_customers(slug: str, token: str):
+    """顧客一覧プロキシ（APIキーをサーバー側で保持）"""
+    path = HEARING_DIR / f"{slug}.json"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Not found")
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if data.get("_dashboard_token") != token:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    account_id = data.get("line_account_id", "")
+    form_id = data.get("_form_id", "")
+    shinsatsu_form_id = data.get("_shinsatsu_form_id", "")
+    harness_url = os.getenv("LINE_HARNESS_API_URL", "https://line-crm-worker.uchiyama1128.workers.dev")
+    harness_key = os.getenv("LINE_HARNESS_API_KEY", "")
+    if not harness_key or not account_id:
+        return {"friends": [], "submissions": {}}
+
+    headers = {"Authorization": f"Bearer {harness_key}", "Content-Type": "application/json"}
+
+    # 友だち一覧
+    friends = []
+    try:
+        res = httpx.get(f"{harness_url}/api/friends?accountId={account_id}&limit=200", headers=headers, timeout=10)
+        if res.is_success:
+            items = res.json().get("data", {}).get("items", [])
+            friends = [
+                {
+                    "id": f.get("id"),
+                    "display_name": f.get("displayName") or f.get("display_name") or "不明",
+                    "picture_url": f.get("pictureUrl") or f.get("picture_url") or "",
+                    "checkin_count": (json.loads(f.get("metadata") or "{}") if isinstance(f.get("metadata"), str) else (f.get("metadata") or {})).get("checkin_count", 0),
+                    "created_at": f.get("createdAt") or f.get("created_at") or "",
+                }
+                for f in items
+            ]
+    except Exception:
+        pass
+
+    # フォーム回答（感想・問診票）
+    submissions: dict = {}
+    for fid_key, fid in [("review", form_id), ("shinsatsu", shinsatsu_form_id)]:
+        if not fid:
+            continue
+        try:
+            res = httpx.get(f"{harness_url}/api/forms/{fid}/submissions", headers=headers, timeout=10)
+            if res.is_success:
+                subs = res.json().get("data", [])
+                for s in subs:
+                    friend_id = s.get("friendId") or s.get("friend_id") or ""
+                    if not friend_id:
+                        continue
+                    if friend_id not in submissions:
+                        submissions[friend_id] = {}
+                    raw = s.get("data", {})
+                    if isinstance(raw, str):
+                        raw = json.loads(raw)
+                    submissions[friend_id][fid_key] = {
+                        "data": raw,
+                        "created_at": s.get("createdAt") or s.get("created_at") or "",
+                    }
+        except Exception:
+            pass
+
+    return {"friends": friends, "submissions": submissions}
+
+
 @app.delete("/admin/clear-all-data")
 async def clear_all_data(secret: str = ""):
     """全テストデータを削除（Renderローカル＋Xサーバー両方）"""

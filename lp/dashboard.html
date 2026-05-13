@@ -38,6 +38,37 @@
       border-bottom: 2px solid #e8edf5;
     }
 
+    /* 顧客管理 */
+    .customer-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .customer-table th { text-align: left; padding: 8px 12px; background: #f0f4ff; color: #2C4A7C; font-size: 12px; font-weight: 700; border-bottom: 2px solid #dce5f5; }
+    .customer-table td { padding: 10px 12px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+    .customer-table tr:hover td { background: #f8faff; cursor: pointer; }
+    .customer-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; background: #e0e6f0; }
+    .customer-avatar-placeholder { width: 32px; height: 32px; border-radius: 50%; background: #c0d0e8; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; color: #fff; }
+    .badge-count { display: inline-block; background: #2C4A7C; color: #fff; border-radius: 12px; padding: 2px 10px; font-size: 12px; font-weight: 700; }
+    .badge-has { display: inline-block; background: #e8f5e9; color: #2e7d32; border-radius: 10px; padding: 2px 8px; font-size: 11px; }
+    .badge-none { display: inline-block; background: #f5f5f5; color: #aaa; border-radius: 10px; padding: 2px 8px; font-size: 11px; }
+
+    /* 詳細ドロワー */
+    .drawer-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 100; }
+    .drawer-overlay.open { display: block; }
+    .drawer { position: fixed; top: 0; right: -100%; width: min(480px, 100vw); height: 100vh; background: #fff; box-shadow: -4px 0 20px rgba(0,0,0,0.12); z-index: 101; transition: right 0.25s ease; overflow-y: auto; }
+    .drawer.open { right: 0; }
+    .drawer-header { background: #2C4A7C; color: #fff; padding: 20px 24px; display: flex; align-items: center; gap: 12px; }
+    .drawer-header img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
+    .drawer-header-placeholder { width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center; font-size: 20px; }
+    .drawer-header h2 { font-size: 16px; font-weight: 700; }
+    .drawer-header p { font-size: 12px; opacity: 0.8; margin-top: 2px; }
+    .drawer-close { margin-left: auto; background: none; border: none; color: #fff; font-size: 22px; cursor: pointer; padding: 4px 8px; }
+    .drawer-body { padding: 20px 24px; }
+    .drawer-section { margin-bottom: 24px; }
+    .drawer-section-title { font-size: 13px; font-weight: 700; color: #2C4A7C; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1.5px solid #e8edf5; }
+    .form-answer { background: #f8faff; border-radius: 8px; padding: 12px 14px; margin-bottom: 8px; }
+    .form-answer dt { font-size: 11px; color: #888; margin-bottom: 3px; }
+    .form-answer dd { font-size: 13px; color: #1a1a2e; }
+    .no-data { font-size: 13px; color: #aaa; }
+    .stars { color: #f59e0b; font-size: 16px; }
+
     /* LP URL */
     .lp-url-box {
       background: #f0f4ff;
@@ -200,6 +231,218 @@
       {{SCENARIOS_HTML}}
     </div>
 
+    <!-- 顧客管理 -->
+    <div class="section">
+      <div class="section-title">顧客管理</div>
+      <div id="customerLoading" style="color:#888;font-size:13px;">読み込み中...</div>
+      <div id="customerError" style="display:none;color:#c62828;font-size:13px;"></div>
+      <div id="customerTableWrap" style="display:none;">
+        <div style="font-size:12px;color:#888;margin-bottom:12px;">クリックすると詳細・フォーム回答を確認できます</div>
+        <div style="overflow-x:auto;">
+          <table class="customer-table">
+            <thead>
+              <tr>
+                <th></th>
+                <th>名前</th>
+                <th>来院回数</th>
+                <th>問診票</th>
+                <th>感想</th>
+                <th>登録日</th>
+              </tr>
+            </thead>
+            <tbody id="customerTbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div id="customerEmpty" style="display:none;color:#888;font-size:13px;">まだ顧客がいません</div>
+    </div>
+
   </div>
+
+  <!-- 詳細ドロワー -->
+  <div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+  <div class="drawer" id="drawer">
+    <div class="drawer-header">
+      <div id="drawerAvatar"></div>
+      <div>
+        <h2 id="drawerName"></h2>
+        <p id="drawerSub"></p>
+      </div>
+      <button class="drawer-close" onclick="closeDrawer()">✕</button>
+    </div>
+    <div class="drawer-body" id="drawerBody"></div>
+  </div>
+
+  <script>
+    const SLUG  = location.pathname.split('/')[1];
+    const TOKEN = location.pathname.split('/')[3];
+    let _customers = [];
+
+    async function loadCustomers() {
+      try {
+        const res = await fetch(`/${SLUG}/customers/${TOKEN}`);
+        if (!res.ok) throw new Error('取得失敗');
+        const json = await res.json();
+        _customers = json.friends || [];
+        const subs = json.submissions || {};
+
+        document.getElementById('customerLoading').style.display = 'none';
+        if (_customers.length === 0) {
+          document.getElementById('customerEmpty').style.display = 'block';
+          return;
+        }
+
+        const tbody = document.getElementById('customerTbody');
+        tbody.innerHTML = '';
+        for (const f of _customers) {
+          const s = subs[f.id] || {};
+          const hasShinsatsu = !!s.shinsatsu;
+          const hasReview = !!s.review;
+          const date = f.created_at ? f.created_at.slice(0, 10) : '-';
+          const avatar = f.picture_url
+            ? `<img class="customer-avatar" src="${f.picture_url}" alt="">`
+            : `<span class="customer-avatar-placeholder">👤</span>`;
+          tbody.insertAdjacentHTML('beforeend', `
+            <tr onclick="openDrawer('${f.id}')">
+              <td>${avatar}</td>
+              <td style="font-weight:600">${esc(f.display_name)}</td>
+              <td><span class="badge-count">${f.checkin_count || 0}回</span></td>
+              <td>${hasShinsatsu ? '<span class="badge-has">あり</span>' : '<span class="badge-none">なし</span>'}</td>
+              <td>${hasReview ? '<span class="badge-has">あり</span>' : '<span class="badge-none">なし</span>'}</td>
+              <td style="color:#888;font-size:12px">${date}</td>
+            </tr>
+          `);
+        }
+        document.getElementById('customerTableWrap').style.display = 'block';
+      } catch (e) {
+        document.getElementById('customerLoading').style.display = 'none';
+        const el = document.getElementById('customerError');
+        el.textContent = '顧客情報を取得できませんでした';
+        el.style.display = 'block';
+      }
+    }
+
+    function openDrawer(friendId) {
+      const json = JSON.parse(document.getElementById('_customersJson').textContent);
+      const f = json.friends.find(x => x.id === friendId);
+      const subs = (json.submissions || {})[friendId] || {};
+      if (!f) return;
+
+      document.getElementById('drawerName').textContent = f.display_name;
+      document.getElementById('drawerSub').textContent = `来院 ${f.checkin_count || 0}回`;
+      const avatarEl = document.getElementById('drawerAvatar');
+      avatarEl.innerHTML = f.picture_url
+        ? `<img src="${f.picture_url}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;">`
+        : `<div class="drawer-header-placeholder">👤</div>`;
+
+      let html = '';
+
+      // 問診票
+      html += `<div class="drawer-section"><div class="drawer-section-title">問診票</div>`;
+      if (subs.shinsatsu && subs.shinsatsu.data) {
+        const labels = {
+          complaint: 'お悩みの内容', condition: '症状の状態', since_when: 'いつから',
+          symptom_time: '症状が現れる時間', cause: '思い当たる原因',
+          treatment_history: '治療歴', notes: 'その他', patient_name: '名前',
+          age: '年齢', occupation: '職業',
+        };
+        for (const [k, v] of Object.entries(subs.shinsatsu.data)) {
+          if (!v) continue;
+          html += `<dl class="form-answer"><dt>${labels[k] || k}</dt><dd>${esc(String(v))}</dd></dl>`;
+        }
+        html += `<p style="font-size:11px;color:#aaa;margin-top:4px;">${subs.shinsatsu.created_at.slice(0,16).replace('T',' ')}</p>`;
+      } else {
+        html += `<p class="no-data">回答なし</p>`;
+      }
+      html += `</div>`;
+
+      // 感想
+      html += `<div class="drawer-section"><div class="drawer-section-title">感想フォーム</div>`;
+      if (subs.review && subs.review.data) {
+        const stars = Number(subs.review.data.stars || 0);
+        if (stars) html += `<div class="form-answer"><dt>評価</dt><dd class="stars">${'★'.repeat(stars)}${'☆'.repeat(5 - stars)} (${stars}/5)</dd></div>`;
+        if (subs.review.data.comment) html += `<dl class="form-answer"><dt>ご感想</dt><dd>${esc(String(subs.review.data.comment))}</dd></dl>`;
+        html += `<p style="font-size:11px;color:#aaa;margin-top:4px;">${subs.review.created_at.slice(0,16).replace('T',' ')}</p>`;
+      } else {
+        html += `<p class="no-data">回答なし</p>`;
+      }
+      html += `</div>`;
+
+      document.getElementById('drawerBody').innerHTML = html;
+      document.getElementById('drawerOverlay').classList.add('open');
+      document.getElementById('drawer').classList.add('open');
+    }
+
+    function closeDrawer() {
+      document.getElementById('drawerOverlay').classList.remove('open');
+      document.getElementById('drawer').classList.remove('open');
+    }
+
+    function esc(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // データをDOMにキャッシュして openDrawer から参照
+    window._customersCache = null;
+    const _origLoad = loadCustomers;
+    async function loadCustomers() {
+      try {
+        const res = await fetch(`/${SLUG}/customers/${TOKEN}`);
+        if (!res.ok) throw new Error('取得失敗');
+        const json = await res.json();
+        window._customersCache = json;
+
+        // DOMキャッシュ
+        const cache = document.getElementById('_customersJson') || (() => {
+          const el = document.createElement('script');
+          el.type = 'application/json';
+          el.id = '_customersJson';
+          document.body.appendChild(el);
+          return el;
+        })();
+        cache.textContent = JSON.stringify(json);
+
+        const _customers = json.friends || [];
+        const subs = json.submissions || {};
+
+        document.getElementById('customerLoading').style.display = 'none';
+        if (_customers.length === 0) {
+          document.getElementById('customerEmpty').style.display = 'block';
+          return;
+        }
+
+        const tbody = document.getElementById('customerTbody');
+        tbody.innerHTML = '';
+        for (const f of _customers) {
+          const s = subs[f.id] || {};
+          const hasShinsatsu = !!s.shinsatsu;
+          const hasReview = !!s.review;
+          const date = f.created_at ? f.created_at.slice(0, 10) : '-';
+          const avatar = f.picture_url
+            ? `<img class="customer-avatar" src="${f.picture_url}" alt="">`
+            : `<span class="customer-avatar-placeholder">👤</span>`;
+          tbody.insertAdjacentHTML('beforeend', `
+            <tr onclick="openDrawer('${esc(f.id)}')">
+              <td>${avatar}</td>
+              <td style="font-weight:600">${esc(f.display_name)}</td>
+              <td><span class="badge-count">${f.checkin_count || 0}回</span></td>
+              <td>${hasShinsatsu ? '<span class="badge-has">あり</span>' : '<span class="badge-none">なし</span>'}</td>
+              <td>${hasReview ? '<span class="badge-has">あり</span>' : '<span class="badge-none">なし</span>'}</td>
+              <td style="color:#888;font-size:12px">${date}</td>
+            </tr>
+          `);
+        }
+        document.getElementById('customerTableWrap').style.display = 'block';
+      } catch (e) {
+        document.getElementById('customerLoading').style.display = 'none';
+        const el = document.getElementById('customerError');
+        el.textContent = '顧客情報を取得できませんでした';
+        el.style.display = 'block';
+      }
+    }
+
+    loadCustomers();
+  </script>
+
 </body>
 </html>
