@@ -816,6 +816,9 @@ async def get_customers(slug: str, token: str):
         res = httpx.get(f"{harness_url}/api/friends?lineAccountId={account_id}&limit=200", headers=headers, timeout=10)
         if res.is_success:
             items = res.json().get("data", {}).get("items", [])
+            # line_login_subが設定されているレコードはMessaging API userIdが正しいレコード
+            # line_user_idが他レコードのline_login_subと一致する場合は重複（プロバイダーミスマッチで誤作成）→除外
+            login_subs = {f.get("lineLoginSub") or f.get("line_login_sub") for f in items if f.get("lineLoginSub") or f.get("line_login_sub")}
             friends = [
                 {
                     "id": f.get("id"),
@@ -825,6 +828,7 @@ async def get_customers(slug: str, token: str):
                     "created_at": f.get("createdAt") or f.get("created_at") or "",
                 }
                 for f in items
+                if (f.get("lineUserId") or f.get("line_user_id")) not in login_subs
             ]
     except Exception:
         pass
