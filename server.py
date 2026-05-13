@@ -813,7 +813,7 @@ async def get_customers(slug: str, token: str):
     # 友だち一覧
     friends = []
     try:
-        res = httpx.get(f"{harness_url}/api/friends?accountId={account_id}&limit=200", headers=headers, timeout=10)
+        res = httpx.get(f"{harness_url}/api/friends?lineAccountId={account_id}&limit=200", headers=headers, timeout=10)
         if res.is_success:
             items = res.json().get("data", {}).get("items", [])
             friends = [
