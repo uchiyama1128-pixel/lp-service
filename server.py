@@ -40,6 +40,48 @@ HEARING_DIR.mkdir(parents=True, exist_ok=True)
 
 app.mount("/static", StaticFiles(directory=str(_BASE / "static")), name="static")
 
+# ─── Cloudflare D1 hearing ストア ────────────────────────────────────
+_CF_ACCOUNT_ID = os.getenv("CF_ACCOUNT_ID", "")
+_CF_D1_DB_ID   = os.getenv("CF_D1_DB_ID", "05d8fa48-a20c-465d-850f-e022493f95c2")
+_CF_API_TOKEN  = os.getenv("CF_API_TOKEN", "")
+
+def _d1q(sql: str, params: list | None = None) -> list[dict]:
+    if not _CF_ACCOUNT_ID or not _CF_API_TOKEN:
+        return []
+    url = f"https://api.cloudflare.com/client/v4/accounts/{_CF_ACCOUNT_ID}/d1/database/{_CF_D1_DB_ID}/query"
+    res = httpx.post(
+        url,
+        headers={"Authorization": f"Bearer {_CF_API_TOKEN}", "Content-Type": "application/json"},
+        json={"sql": sql, "params": params or []},
+        timeout=10,
+    )
+    if not res.is_success:
+        return []
+    return res.json().get("result", [{}])[0].get("results", [])
+
+def get_hearing(slug: str) -> dict | None:
+    """D1からhearingデータを取得（なければローカルファイルにフォールバック）"""
+    rows = _d1q("SELECT data FROM lp_hearings WHERE slug = ?", [slug])
+    if rows:
+        return json.loads(rows[0]["data"])
+    # フォールバック：既存ローカルファイル
+    local = HEARING_DIR / f"{slug}.json"
+    if local.exists():
+        return json.loads(local.read_text(encoding="utf-8"))
+    return None
+
+def save_hearing(slug: str, data: dict) -> None:
+    """D1にhearingデータを保存（ローカルファイルにも同時書き込み）"""
+    payload = json.dumps(data, ensure_ascii=False)
+    existing = _d1q("SELECT slug FROM lp_hearings WHERE slug = ?", [slug])
+    if existing:
+        _d1q("UPDATE lp_hearings SET data = ?, updated_at = datetime('now') WHERE slug = ?", [payload, slug])
+    else:
+        _d1q("INSERT INTO lp_hearings (slug, data) VALUES (?, ?)", [slug, payload])
+    # ローカルにも保持（フォールバック用）
+    HEARING_DIR.mkdir(parents=True, exist_ok=True)
+    (HEARING_DIR / f"{slug}.json").write_text(payload, encoding="utf-8")
+
 
 def _ftp_deploy(html: str, slug: str) -> str:
     import random, string
@@ -117,10 +159,7 @@ async def post_line_only_hearing(request: Request):
         if hearing.get("lp_url") and not hearing.get("_lp_url"):
             hearing["_lp_url"] = hearing["lp_url"]
 
-        HEARING_DIR.mkdir(parents=True, exist_ok=True)
-        (HEARING_DIR / f"{url_slug}.json").write_text(
-            json.dumps(hearing, ensure_ascii=False, indent=2), encoding="utf-8"
-        )
+        save_hearing(url_slug, hearing)
 
         return {"success": True, "line_setup_url": f"/{url_slug}/line-setup"}
     except HTTPException:
@@ -318,9 +357,7 @@ async def generate_lp(
             # ダッシュボード用ランダムトークン（未設定の場合のみ発行）
             if not hearing_dict.get("_dashboard_token"):
                 hearing_dict["_dashboard_token"] = secrets.token_urlsafe(24)
-            (HEARING_DIR / f"{saved_slug}.json").write_text(
-                json.dumps(hearing_dict, ensure_ascii=False, indent=2), encoding="utf-8"
-            )
+            save_hearing(saved_slug, hearing_dict)
         except Exception as e:
             print(f"⚠️ hearing保存失敗: {e}")
 
@@ -353,12 +390,11 @@ async def serve_local_lp(slug: str):
 
 
 @app.get("/lp/hearing/{slug}")
-async def get_hearing(slug: str):
+async def get_hearing_endpoint(slug: str):
     """LP登録済みhearingデータをスラッグで取得"""
-    path = HEARING_DIR / f"{slug}.json"
-    if not path.exists():
+    data = get_hearing(slug)
+    if data is None:
         raise HTTPException(status_code=404, detail="hearing not found")
-    data = json.loads(path.read_text(encoding="utf-8"))
     return {
         "success": True,
         "hearing": {
@@ -374,8 +410,7 @@ async def get_hearing(slug: str):
 @app.get("/{slug}/line-setup", response_class=HTMLResponse)
 async def get_line_setup(slug: str):
     """LINE設定ページ"""
-    path = HEARING_DIR / f"{slug}.json"
-    if not path.exists():
+    if get_hearing(slug) is None:
         raise HTTPException(status_code=404, detail=f"スラッグ '{slug}' のLP情報が見つかりません")
     return LINE_SETUP_PATH.read_text(encoding="utf-8")
 
@@ -397,10 +432,9 @@ async def post_line_setup(slug: str, request: Request):
             raise HTTPException(status_code=400, detail="channel_id は必須です")
 
         # hearing読み込み
-        path = HEARING_DIR / f"{slug}.json"
-        if not path.exists():
+        data = get_hearing(slug)
+        if data is None:
             raise HTTPException(status_code=404, detail="LP情報が見つかりません")
-        data = json.loads(path.read_text(encoding="utf-8"))
 
         shop_name_for_account = data.get("shop_name", slug)
         harness_url_val = os.getenv("LINE_HARNESS_API_URL", "https://line-crm-worker.uchiyama1128.workers.dev")
@@ -632,7 +666,7 @@ async def post_line_setup(slug: str, request: Request):
         data["_form_id"] = form_id
         data["_shinsatsu_form_id"] = shinsatsu_form_id
         data["_google_review_url"] = google_review_url
-        path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        save_hearing(slug, data)
 
         return {
             "success": True,
@@ -696,10 +730,9 @@ def _render_flex_preview(content: str) -> str:
 @app.get("/{slug}/dashboard/{token}", response_class=HTMLResponse)
 async def get_dashboard(slug: str, token: str):
     """クライアントダッシュボード"""
-    path = HEARING_DIR / f"{slug}.json"
-    if not path.exists():
+    data = get_hearing(slug)
+    if data is None:
         raise HTTPException(status_code=404, detail="LP情報が見つかりません")
-    data = json.loads(path.read_text(encoding="utf-8"))
     if data.get("_dashboard_token") != token:
         raise HTTPException(status_code=403, detail="URLが正しくありません")
 
@@ -793,10 +826,9 @@ async def get_dashboard(slug: str, token: str):
 @app.get("/{slug}/customers/{token}")
 async def get_customers(slug: str, token: str):
     """顧客一覧プロキシ（APIキーをサーバー側で保持）"""
-    path = HEARING_DIR / f"{slug}.json"
-    if not path.exists():
+    data = get_hearing(slug)
+    if data is None:
         raise HTTPException(status_code=404, detail="Not found")
-    data = json.loads(path.read_text(encoding="utf-8"))
     if data.get("_dashboard_token") != token:
         raise HTTPException(status_code=403, detail="Forbidden")
 
