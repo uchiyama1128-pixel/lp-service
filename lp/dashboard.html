@@ -225,12 +225,6 @@
       </div>
     </div>
 
-    <!-- ステップ配信 -->
-    <div class="section">
-      <div class="section-title">ステップ配信シナリオ</div>
-      {{SCENARIOS_HTML}}
-    </div>
-
     <!-- 顧客管理 -->
     <div class="section">
       <div class="section-title">顧客管理</div>
@@ -257,6 +251,12 @@
       <div id="customerEmpty" style="display:none;color:#888;font-size:13px;">まだ顧客がいません</div>
     </div>
 
+    <!-- ステップ配信 -->
+    <div class="section">
+      <div class="section-title">ステップ配信シナリオ</div>
+      {{SCENARIOS_HTML}}
+    </div>
+
   </div>
 
   <!-- 詳細ドロワー -->
@@ -276,54 +276,10 @@
   <script>
     const SLUG  = location.pathname.split('/')[1];
     const TOKEN = location.pathname.split('/')[3];
-    let _customers = [];
-
-    async function loadCustomers() {
-      try {
-        const res = await fetch(`/${SLUG}/customers/${TOKEN}`);
-        if (!res.ok) throw new Error('取得失敗');
-        const json = await res.json();
-        _customers = json.friends || [];
-        const subs = json.submissions || {};
-
-        document.getElementById('customerLoading').style.display = 'none';
-        if (_customers.length === 0) {
-          document.getElementById('customerEmpty').style.display = 'block';
-          return;
-        }
-
-        const tbody = document.getElementById('customerTbody');
-        tbody.innerHTML = '';
-        for (const f of _customers) {
-          const s = subs[f.id] || {};
-          const hasShinsatsu = !!s.shinsatsu;
-          const hasReview = !!s.review;
-          const date = f.created_at ? f.created_at.slice(0, 10) : '-';
-          const avatar = f.picture_url
-            ? `<img class="customer-avatar" src="${f.picture_url}" alt="">`
-            : `<span class="customer-avatar-placeholder">👤</span>`;
-          tbody.insertAdjacentHTML('beforeend', `
-            <tr onclick="openDrawer('${f.id}')">
-              <td>${avatar}</td>
-              <td style="font-weight:600">${esc(f.display_name)}</td>
-              <td><span class="badge-count">${f.checkin_count || 0}回</span></td>
-              <td>${hasShinsatsu ? '<span class="badge-has">あり</span>' : '<span class="badge-none">なし</span>'}</td>
-              <td>${hasReview ? '<span class="badge-has">あり</span>' : '<span class="badge-none">なし</span>'}</td>
-              <td style="color:#888;font-size:12px">${date}</td>
-            </tr>
-          `);
-        }
-        document.getElementById('customerTableWrap').style.display = 'block';
-      } catch (e) {
-        document.getElementById('customerLoading').style.display = 'none';
-        const el = document.getElementById('customerError');
-        el.textContent = '顧客情報を取得できませんでした';
-        el.style.display = 'block';
-      }
-    }
+    let _cachedData = null;
 
     function openDrawer(friendId) {
-      const json = JSON.parse(document.getElementById('_customersJson').textContent);
+      const json = _cachedData;
       const f = json.friends.find(x => x.id === friendId);
       const subs = (json.submissions || {})[friendId] || {};
       if (!f) return;
@@ -382,25 +338,12 @@
       return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
-    // データをDOMにキャッシュして openDrawer から参照
-    window._customersCache = null;
-    const _origLoad = loadCustomers;
     async function loadCustomers() {
       try {
         const res = await fetch(`/${SLUG}/customers/${TOKEN}`);
         if (!res.ok) throw new Error('取得失敗');
         const json = await res.json();
-        window._customersCache = json;
-
-        // DOMキャッシュ
-        const cache = document.getElementById('_customersJson') || (() => {
-          const el = document.createElement('script');
-          el.type = 'application/json';
-          el.id = '_customersJson';
-          document.body.appendChild(el);
-          return el;
-        })();
-        cache.textContent = JSON.stringify(json);
+        _cachedData = json;
 
         const _customers = json.friends || [];
         const subs = json.submissions || {};
