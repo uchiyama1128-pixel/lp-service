@@ -118,8 +118,11 @@ def _ftp_deploy(html: str, slug: str) -> str:
     return base_url.rstrip("/") + "/" + urllib.parse.quote(final_slug) + "/"
 
 
-@app.get("/", response_class=HTMLResponse)
-async def root():
+@app.api_route("/", methods=["GET", "HEAD"], response_class=HTMLResponse)
+async def root(request: Request):
+    if request.method == "HEAD":
+        from fastapi.responses import Response
+        return Response(status_code=200)
     return FORM_PATH.read_text(encoding="utf-8")
 
 
