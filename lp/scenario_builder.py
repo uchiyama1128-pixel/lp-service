@@ -388,56 +388,40 @@ def _scenario_templates(shop_name: str, owner_name: str, booking_url: str,
             ],
         },
         # ─── シナリオD｜既存顧客チェックイン ─────────────────────────
-        # 同じQRで初来院タグ付与 → 再来院タグあり＝2回目以降のみ実行
-        # Day0→Day1→Day2→Day3→Day5→Day7→Day{_rv_days}
+        # 口コミ依頼なし。Day0→Day3→Day5→Day7→Day{_rv_days}
         {
             "name": f"シナリオD｜既存顧客チェックイン【{shop_name}】",
             "triggerType": "tag_added",
             "triggerTagName": tag_re_checkin,
             "steps": [
-                # Day0 即時 ＋ 再来院タグなし＝初回→スキップ（STEP15が最終、16=past end）
+                # Day0 即時
                 {"stepOrder": 1, "delayMinutes": 0, "deliveryHour": None, "messageType": "text",
-                 "messageContent": R("{{name}}さん、本日もご来院ありがとうございます！\n\nまたお会いできて嬉しいです。今日もしっかり整えていきましょう。"),
-                 "conditionType": "tag_exists", "conditionValue": tag_re_checkin, "nextStepOnFalse": 16},
-                # Day1 20時 感想フォーム案内（条件付き）
-                {"stepOrder": 2, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "text",
-                 "messageContent": R("{{name}}さん、本日もご来院いただきありがとうございました。\n\nお体の調子はいかがでしょうか？\n\n同じようなお悩みを抱えて、どこに行けばいいか迷っている方の参考に、{{name}}さんの体験を口コミで教えていただけませんか？\n\nご回答いただいた方全員に、次回来院クーポンをお届けしています。"),
-                 "conditionType": "tag_not_exists", "conditionValue": f"{shop_name}_感想クーポン配布済み", "nextStepOnFalse": 3},
-                {"stepOrder": 3, "delayMinutes": 0, "deliveryHour": 20, "messageType": "flex",
-                 "messageContent": _btn_form,
-                 "conditionType": "tag_not_exists", "conditionValue": f"{shop_name}_感想クーポン配布済み", "nextStepOnFalse": 4},
-                # Day2 20時 リマインド（条件付き）
-                {"stepOrder": 4, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "text",
-                 "messageContent": R("{{name}}さん、こんにちは。\n\n昨日ご案内した感想フォーム、まだでしたらこちらからどうぞ。\n\n{{name}}さんの声が、誰かの背中を押すかもしれません。"),
-                 "conditionType": "tag_not_exists", "conditionValue": f"{shop_name}_感想クーポン配布済み", "nextStepOnFalse": 5},
-                {"stepOrder": 5, "delayMinutes": 0, "deliveryHour": 20, "messageType": "flex",
-                 "messageContent": _btn_form_r,
-                 "conditionType": "tag_not_exists", "conditionValue": f"{shop_name}_感想クーポン配布済み", "nextStepOnFalse": 6},
+                 "messageContent": R("{{name}}さん、本日もご来院ありがとうございます！\n\nまたお会いできて嬉しいです。今日もしっかり整えていきましょう。")},
                 # Day3 20時 セルフケア
-                {"stepOrder": 6, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "text",
+                {"stepOrder": 2, "delayMinutes": 3 * 1440, "deliveryHour": 20, "messageType": "text",
                  "messageContent": R("{{name}}さん、こんにちは。【院長名】です。\n\nご来院から3日が経ちました。お体の調子はいかがでしょうか？\n\n自宅でできる簡単なケアをご紹介します。\n\n・肩をゆっくり後ろに大きく回す（10回）\n・首を左右にゆっくり倒して10秒キープ（各1回）\n・仰向けで膝を抱えて、腰をやさしくストレッチ（30秒）\n\n1日2〜3分でできますので、ぜひ続けてみてください。")},
                 # Day5 20時 経過確認
-                {"stepOrder": 7, "delayMinutes": 2880, "deliveryHour": 20, "messageType": "text",
+                {"stepOrder": 3, "delayMinutes": 2 * 1440, "deliveryHour": 20, "messageType": "text",
                  "messageContent": R("{{name}}さん、その後お体の調子はいかがですか？\n\nご来院から5日が経ちました。\n\n「だいぶ楽になった」という変化を感じていただけていれば嬉しいですし、「少し戻ってきた」という場合もぜひ教えてください。\n\n何かあればいつでもこちらのLINEへご連絡ください。")},
                 # Day7 20時 次回ケアの必要性
-                {"stepOrder": 8, "delayMinutes": 2880, "deliveryHour": 20, "messageType": "text",
+                {"stepOrder": 4, "delayMinutes": 2 * 1440, "deliveryHour": 20, "messageType": "text",
                  "messageContent": R("{{name}}さん、こんにちは。【院長名】です。\n\nご来院から1週間が経ちました。\n\n体の歪みや筋肉の緊張は、日常の姿勢や動作のクセによって少しずつ元に戻ろうとします。\n\n「調子が良いときこそ来院する」習慣が、長期的に体を良い状態に保つ一番の近道です。\n\n次回のケアのタイミングを一緒に考えましょう。")},
                 # DayN 再来院クーポン配布
-                {"stepOrder": 9, "delayMinutes": max(0, _rv_days - 7) * 1440, "deliveryHour": 20, "messageType": "text",
+                {"stepOrder": 5, "delayMinutes": max(0, _rv_days - 7) * 1440, "deliveryHour": 20, "messageType": "text",
                  "messageContent": R(f"{{{{name}}}}さん、こんにちは。\n\nご来院から{_rv_days}日が経ちました。\n\n体は、定期的にケアを続けることで「良い状態」が当たり前になっていきます。\n\nそろそろ次のケアのタイミングです。再来院クーポンをお届けしますので、ぜひご活用ください。")},
-                {"stepOrder": 10, "delayMinutes": 0, "deliveryHour": 20, "messageType": "flex",
+                {"stepOrder": 6, "delayMinutes": 0, "deliveryHour": 20, "messageType": "flex",
                  "messageContent": frc},
-                {"stepOrder": 11, "delayMinutes": 0, "deliveryHour": 20, "messageType": "flex",
+                {"stepOrder": 7, "delayMinutes": 0, "deliveryHour": 20, "messageType": "flex",
                  "messageContent": _btn_booking},
                 # DayN+3 フォローアップ1
-                {"stepOrder": 12, "delayMinutes": 3 * 1440, "deliveryHour": 20, "messageType": "text",
+                {"stepOrder": 8, "delayMinutes": 3 * 1440, "deliveryHour": 20, "messageType": "text",
                  "messageContent": R(f"{{{{name}}}}さん、こんにちは。\n\n先日お届けした再来院クーポン、もうご確認いただけましたか？\n\n定期的に通っていただいているお客様ほど、体の変化が早く・長持ちします。\n\nせっかく整えた体をキープするために、ぜひこの機会にご来院ください。")},
-                {"stepOrder": 13, "delayMinutes": 0, "deliveryHour": 20, "messageType": "flex",
+                {"stepOrder": 9, "delayMinutes": 0, "deliveryHour": 20, "messageType": "flex",
                  "messageContent": _btn_booking},
                 # DayN+7 フォローアップ2（最後）
-                {"stepOrder": 14, "delayMinutes": 4 * 1440, "deliveryHour": 20, "messageType": "text",
+                {"stepOrder": 10, "delayMinutes": 4 * 1440, "deliveryHour": 20, "messageType": "text",
                  "messageContent": R(f"{{{{name}}}}さん、こんにちは。\n\n再来院クーポンのご案内、最後のお知らせです。\n\n「行こうと思っていたけれど、なかなか…」そういう方、とても多いです。\n\nでも間隔が空くほど、体は元の状態に戻りやすくなります。今まで積み上げてきたケアを活かすためにも、ぜひご来院をお待ちしています。")},
-                {"stepOrder": 15, "delayMinutes": 0, "deliveryHour": 20, "messageType": "flex",
+                {"stepOrder": 11, "delayMinutes": 0, "deliveryHour": 20, "messageType": "flex",
                  "messageContent": _btn_booking},
             ],
         },
