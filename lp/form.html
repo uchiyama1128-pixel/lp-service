@@ -212,8 +212,12 @@
         <input type="text" id="location" placeholder="例：大阪市北区">
       </div>
       <div class="field">
-        <label>営業時間・定休日</label>
-        <input type="text" id="business_hours" placeholder="例：10:00〜20:00（火曜定休）">
+        <label>営業時間</label>
+        <input type="text" id="open_hours" placeholder="例：10:00〜20:00（最終受付 19:30）">
+      </div>
+      <div class="field">
+        <label>定休日</label>
+        <input type="text" id="regular_holiday" placeholder="例：火曜日・第3水曜日">
       </div>
       <div class="field">
         <label>電話番号</label>
@@ -413,12 +417,12 @@
         <input type="text" id="target" placeholder="例：30〜50代の腰痛・肩こりに悩む会社員・主婦">
       </div>
       <div class="field">
-        <label>お客様がよく抱えている悩み<span class="req">*</span><span class="hint">最大3つ</span></label>
+        <label>お客様がよく抱えている悩み<span class="req">*</span><span class="hint">3つ入力必須</span></label>
         <div id="problems-list">
-          <div class="repeat-item"><input type="text" placeholder="例：マッサージに通っても翌日にはまた痛くなる"><button class="btn-remove" onclick="removeItem(this)">✕</button></div>
-          <div class="repeat-item"><input type="text" placeholder="例：長年の腰痛・肩こりが改善しない"><button class="btn-remove" onclick="removeItem(this)">✕</button></div>
+          <div class="repeat-item"><input type="text" placeholder="例：マッサージに通っても翌日にはまた痛くなる" required></div>
+          <div class="repeat-item"><input type="text" placeholder="例：長年の腰痛・肩こりが改善しない" required></div>
+          <div class="repeat-item"><input type="text" placeholder="例：病院で異常なしと言われたが痛みが続いている" required></div>
         </div>
-        <button class="btn-add" onclick="addItem('problems-list', '悩みを追加', 3)">＋ 悩みを追加</button>
       </div>
     </div>
 
@@ -571,11 +575,19 @@
           </div>
         </div>
         <div class="photo-item">
-          <label>スタッフ・院長写真</label>
+          <label>院長写真（メッセージカード用）</label>
+          <div class="photo-drop">
+            <input type="file" id="file-owner" accept="image/*" onchange="previewPhoto(this,'prev-owner')">
+            <img id="prev-owner" class="photo-preview">
+            <div id="ph-owner"><div class="icon">👨‍⚕️</div><div class="label">クリックまたはドラッグ&ドロップ</div></div>
+          </div>
+        </div>
+        <div class="photo-item">
+          <label>スタッフ写真（ギャラリー用）</label>
           <div class="photo-drop">
             <input type="file" id="file-staff" accept="image/*" onchange="previewPhoto(this,'prev-staff')">
             <img id="prev-staff" class="photo-preview">
-            <div id="ph-staff"><div class="icon">👨‍⚕️</div><div class="label">クリックまたはドラッグ&ドロップ</div></div>
+            <div id="ph-staff"><div class="icon">👥</div><div class="label">クリックまたはドラッグ&ドロップ</div></div>
           </div>
         </div>
         <div class="photo-item">
@@ -995,7 +1007,8 @@ function collectHearing() {
     shop_type:           get('shop_type'),
     location:            get('location'),
     address:             get('address'),
-    business_hours:      get('business_hours'),
+    open_hours:          get('open_hours'),
+    regular_holiday:     get('regular_holiday'),
     phone:               get('phone'),
     line_status:         document.querySelector('input[name="line_status"]:checked')?.value || 'has',
     line_url:            get('line_url'),
@@ -1100,7 +1113,7 @@ async function submitForm() {
   hearing.selected_catchcopy = selectedCopy;
   formData.set('hearing', JSON.stringify(hearing));
 
-  const photoFields = ['hero', 'exterior', 'interior', 'staff', 'treatment'];
+  const photoFields = ['hero', 'exterior', 'interior', 'owner', 'staff', 'treatment'];
   for (const field of photoFields) {
     const fileInput = document.getElementById('file-' + field);
     if (fileInput?.files[0]) formData.append(field, fileInput.files[0]);

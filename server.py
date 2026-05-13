@@ -28,6 +28,7 @@ app = FastAPI(title="LP制作代行サービス")
 
 _BASE     = Path(__file__).parent
 FORM_PATH = _BASE / "lp" / "form.html"
+LINE_HEARING_PATH = _BASE / "lp" / "line_hearing.html"
 LINE_SETUP_PATH = _BASE / "lp" / "line_setup.html"
 DASHBOARD_PATH  = _BASE / "lp" / "dashboard.html"
 PHOTOS_DIR = _BASE / "tmp" / "photos"
@@ -83,6 +84,110 @@ async def root():
 @app.get("/lp/form", response_class=HTMLResponse)
 async def get_form():
     return FORM_PATH.read_text(encoding="utf-8")
+
+
+@app.get("/line-form", response_class=HTMLResponse)
+async def get_line_form():
+    return LINE_HEARING_PATH.read_text(encoding="utf-8")
+
+
+@app.post("/line-only/hearing")
+async def post_line_only_hearing(request: Request):
+    """LINE構築専用ヒアリング（LP生成なし）"""
+    try:
+        body = await request.json()
+        shop_name = (body.get("shop_name") or "").strip()
+        if not shop_name:
+            raise HTTPException(status_code=400, detail="店名・院名を入力してください")
+
+        import re, unicodedata
+        # ASCII文字のみのslugを生成（日本語はHarnessのQR ref_codeに使えないため）
+        normalized = unicodedata.normalize('NFKD', shop_name)
+        ascii_only = normalized.encode('ascii', 'ignore').decode('ascii')
+        url_slug = re.sub(r'[^\w\-]', '', ascii_only.lower().replace(' ', '-').replace('　', '-'))
+        if not url_slug:
+            # 日本語店名などASCIIが残らない場合はランダムトークン
+            url_slug = secrets.token_urlsafe(8).lower()
+
+        hearing = dict(body)
+        if not hearing.get("_dashboard_token"):
+            hearing["_dashboard_token"] = secrets.token_urlsafe(24)
+
+        # lp_url を _lp_url としても保存（LINE設定ページで参照）
+        if hearing.get("lp_url") and not hearing.get("_lp_url"):
+            hearing["_lp_url"] = hearing["lp_url"]
+
+        HEARING_DIR.mkdir(parents=True, exist_ok=True)
+        (HEARING_DIR / f"{url_slug}.json").write_text(
+            json.dumps(hearing, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+
+        return {"success": True, "line_setup_url": f"/{url_slug}/line-setup"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/lp/preview", response_class=HTMLResponse)
+async def lp_preview():
+    """API不要のLPプレビュー（ボタン・レイアウト確認用）"""
+    from lp.html_builder import build_lp_html
+    hearing = {
+        "shop_name": "サンプル整体院", "shop_type": "整体院", "location": "東京都渋谷区",
+        "address": "東京都渋谷区〇〇1-2-3", "phone": "03-1234-5678",
+        "line_url": "https://line.me/R/ti/p/@example",
+        "booking_url": "https://coubic.com/example",
+        "cta_type": ["line", "phone", "booking"],
+        "color_theme": "natural_green",
+        "target": "肩こりや腰痛に悩む30〜50代の女性",
+        "open_hours": "10:00〜20:00（最終受付 19:00）",
+        "regular_holiday": "毎週火曜日",
+        "coupon_title": "初回体験クーポン", "coupon_original_price": "8,000円", "coupon_price": "3,980円",
+        "owner_name": "山田 太郎", "owner_message": "患者様一人ひとりに寄り添った施術を心がけています。当院では根本原因にアプローチし、再発しない体づくりをサポートしています。お体のことで何かお困りの際は、どうぞお気軽にご相談ください。",
+        "owner_qualifications": "柔道整復師 / 鍼灸師",
+        "main_menu": [
+            {"name": "全身整体コース", "time": "60分", "price": "6,600円", "description": "全身のバランスを整えます"},
+            {"name": "腰痛専門コース", "time": "45分", "price": "5,500円", "original_price": "8,000円", "description": "腰痛に特化した施術"},
+            {"name": "肩こり解消コース", "time": "30分", "price": "3,300円", "description": "肩まわりを集中ケア"},
+        ],
+        "faq": [
+            {"q": "初めてでも大丈夫ですか？", "a": "はい、初めての方も安心してお越しください。丁寧にカウンセリングを行います。"},
+            {"q": "予約は必要ですか？", "a": "完全予約制ですので、事前にご予約をお願いしています。"},
+        ],
+        "photos": {
+            "hero":      str(Path(__file__).parent / "lp/assets/hero/default.jpg"),
+            "staff":     str(Path(__file__).parent / "lp/assets/menu/zentai_f_a.jpg"),
+            "interior":  str(Path(__file__).parent / "lp/assets/menu/koshi_f_a.jpg"),
+            "exterior":  str(Path(__file__).parent / "lp/assets/menu/katakori_f_a.jpg"),
+            "treatment": str(Path(__file__).parent / "lp/assets/menu/ashi_f_a.jpg"),
+        },
+    }
+    copy = {
+        "catch_copy": "その痛み、もう我慢しなくていい",
+        "sub_copy": "根本から改善する整体で、毎日を快適に過ごしましょう",
+        "pain_section": {"headline": "こんなお悩みはありませんか？", "items": [
+            {"text": "慢性的な肩こり・首の痛み", "sub": "デスクワークや育児で肩が張り、夜も眠れないほどつらい"},
+            {"text": "腰痛がなかなか治らない", "sub": "湿布や市販薬を使っても、すぐにまた痛みが戻ってしまう"},
+            {"text": "疲れが取れない・体が重い", "sub": "しっかり寝ても疲労感が残り、仕事や家事に集中できない"},
+        ]},
+        "empathy_text": "「どこに行っても改善しない」「忙しくて通えない」そのお悩み、サンプル整体院にお任せください。",
+        "solution_section": {"headline": "選ばれる理由", "body": "独自の整体メソッドで根本から改善します。", "points": [
+            {"title": "丁寧なカウンセリング", "body": "お身体の状態を詳しくお聞きし、最適な施術プランをご提案します。"},
+            {"title": "経験豊富なスタッフ", "body": "国家資格を持つ施術者が責任を持って対応いたします。"},
+            {"title": "完全予約制で安心", "body": "待ち時間なし。ご都合に合わせてご予約いただけます。"},
+        ]},
+        "achievements_section": {"headline": "実績・数字で見る", "items": ["施術実績 5,000人以上", "顧客満足度 98%", "リピート率 92%"]},
+        "testimonials_section": {"headline": "お客様の声", "items": [
+            {"name": "30代女性・会社員", "comment": "産後から続いていた腰痛が、3回の施術でほぼ気にならなくなりました。もっと早く来ればよかったです！"},
+            {"name": "40代男性・デスクワーク", "comment": "慢性的な肩こりが改善され、仕事の集中力も上がりました。毎月通っています。"},
+            {"name": "50代女性・主婦", "comment": "先生の説明がわかりやすく、安心して施術を受けられました。体が軽くなりました。"},
+        ]},
+        "menu_section": {"headline": "メニュー・料金", "lead": "お身体の状態に合わせてコースをお選びください。"},
+        "faq_section": {"headline": "よくある質問"},
+        "cta_section": {"headline": "まずは気軽にご相談ください", "body": "初回限定クーポンご利用で、通常8,000円が3,980円に。", "button_text": "LINEで予約", "note": "友だち追加・登録無料"},
+    }
+    return build_lp_html(hearing, copy, embed_images=True)
 
 
 @app.post("/lp/catchcopy")
@@ -150,6 +255,7 @@ async def generate_lp(
     hero:      UploadFile = File(None),
     exterior:  UploadFile = File(None),
     interior:  UploadFile = File(None),
+    owner:     UploadFile = File(None),
     staff:     UploadFile = File(None),
     treatment: UploadFile = File(None),
 ):
@@ -161,8 +267,8 @@ async def generate_lp(
         # 住所からマップURL自動生成
         address = hearing_dict.get("address", "")
         if address and not hearing_dict.get("map_embed_url"):
-            query = urllib.parse.quote(f"{shop_name} {address}")
-            hearing_dict["map_embed_url"] = f"https://maps.google.com/maps?q={query}&output=embed&z=16"
+            query = urllib.parse.quote(address)
+            hearing_dict["map_embed_url"] = f"https://www.google.com/maps?q={query}&output=embed&z=16"
 
         # 写真の一時保存
         photo_dir = PHOTOS_DIR / shop_name
@@ -172,7 +278,7 @@ async def generate_lp(
         photos = {}
         for field_name, upload in [
             ("hero", hero), ("exterior", exterior),
-            ("interior", interior), ("staff", staff), ("treatment", treatment),
+            ("interior", interior), ("owner", owner), ("staff", staff), ("treatment", treatment),
         ]:
             if upload and upload.filename:
                 suffix = Path(upload.filename).suffix or ".jpg"
@@ -188,6 +294,13 @@ async def generate_lp(
 
         # HTML生成（画像base64埋め込み）
         html = build_lp_html(hearing_dict, copy, embed_images=True)
+
+        # ローカル保存（常に実行）
+        try:
+            OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+            (OUTPUT_DIR / f"{url_slug}.html").write_text(html, encoding="utf-8")
+        except Exception as e:
+            print(f"⚠️ ローカル保存失敗: {e}")
 
         # FTPデプロイ
         public_url = ""
@@ -219,15 +332,24 @@ async def generate_lp(
 
         return {
             "success": True,
-            "public_url": public_url,
+            "public_url": public_url or f"/lp/local/{url_slug}",
             "ftp_error": ftp_error,
-            "line_setup_url": f"/{url_slug}/line-setup" if public_url else "",
+            "line_setup_url": f"/{url_slug}/line-setup",
         }
     except HTTPException:
         raise
     except Exception as e:
         import traceback
         raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}\n{traceback.format_exc()}")
+
+
+@app.get("/lp/local/{slug}", response_class=HTMLResponse)
+async def serve_local_lp(slug: str):
+    """ローカル生成済みLPを表示（FTPなしで確認用）"""
+    path = OUTPUT_DIR / f"{slug}.html"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="LP not found. まず生成してください。")
+    return path.read_text(encoding="utf-8")
 
 
 @app.get("/lp/hearing/{slug}")
@@ -361,47 +483,81 @@ async def post_line_setup(slug: str, request: Request):
         harness_url = harness_url_val
         harness_key = harness_key_val
         form_id = data.get("_form_id", "")
+        shinsatsu_form_id = data.get("_shinsatsu_form_id", "")
 
         form_description = json.dumps({
             "google_maps_url": google_review_url,
             "coupon_text": review_coupon_text,
             "revisit_coupon_text": revisit_coupon_text,
             "revisit_coupon_timing_days": revisit_coupon_timing,
+            "add_tag_on_submit": f"{shop_name}_再来院",
         }, ensure_ascii=False)
 
+        _harness_headers = {"Authorization": f"Bearer {harness_key}", "Content-Type": "application/json"}
+
         if not harness_key:
-            # APIキー未設定の場合はフォーム作成をスキップ
             pass
-        elif form_id:
-            # 既存フォームを更新
-            httpx.put(
-                f"{harness_url}/api/forms/{form_id}",
-                headers={"Authorization": f"Bearer {harness_key}", "Content-Type": "application/json"},
-                json={"description": form_description},
-                timeout=10,
-            )
         else:
-            # 新規フォーム作成
-            form_res = httpx.post(
-                f"{harness_url}/api/forms",
-                headers={"Authorization": f"Bearer {harness_key}", "Content-Type": "application/json"},
-                json={
-                    "name": f"感想フォーム - {shop_name}",
-                    "description": form_description,
-                    "fields": [
-                        {"name": "stars", "label": "評価", "type": "number", "required": True},
-                        {"name": "comment", "label": "ご感想", "type": "textarea", "required": False},
-                    ],
-                    "saveToMetadata": True,
-                },
-                timeout=10,
-            )
-            if form_res.is_success:
-                form_id = form_res.json().get("data", {}).get("id", "")
+            # 感想フォーム（施術後フィードバック）
+            if form_id:
+                httpx.put(
+                    f"{harness_url}/api/forms/{form_id}",
+                    headers=_harness_headers,
+                    json={"description": form_description},
+                    timeout=10,
+                )
+            else:
+                form_res = httpx.post(
+                    f"{harness_url}/api/forms",
+                    headers=_harness_headers,
+                    json={
+                        "name": f"感想フォーム - {shop_name}",
+                        "description": form_description,
+                        "fields": [
+                            {"name": "stars", "label": "評価", "type": "number", "required": True},
+                            {"name": "comment", "label": "ご感想", "type": "textarea", "required": False},
+                        ],
+                        "saveToMetadata": True,
+                    },
+                    timeout=10,
+                )
+                if form_res.is_success:
+                    form_id = form_res.json().get("data", {}).get("id", "")
+
+            # 問診票フォーム（来院前の事前ヒアリング）
+            shinsatsu_fields = [
+                {"name": "complaint", "label": "どのようなことにお悩みで来院されましたか？", "type": "textarea", "required": True},
+                {"name": "condition", "label": "そのお悩みの状態を教えてください", "type": "select",
+                 "options": ["治りかけ", "変化なし", "悪い", "かなり悪い（日常生活に支障）"], "required": True},
+                {"name": "since_when", "label": "上記症状はいつからですか？", "type": "textarea", "required": True},
+                {"name": "symptom_time", "label": "一番症状が現れるのはいつですか？", "type": "select",
+                 "options": ["朝", "昼", "夕方", "夜"], "required": True},
+                {"name": "cause", "label": "思い当たる原因はありますか？", "type": "textarea", "required": True},
+                {"name": "treatment_history", "label": "お悩みに関して、どこかで治療されましたか？", "type": "select",
+                 "options": ["治療してない", "病院", "鍼灸院・整体院", "その他"], "required": True},
+                {"name": "notes", "label": "そのほかに事前に伝えたいことがありましたらご記載ください（任意）", "type": "textarea", "required": False},
+                {"name": "patient_name", "label": "名前", "type": "text", "required": True},
+                {"name": "phone", "label": "電話番号", "type": "text", "required": True},
+            ]
+            if not shinsatsu_form_id:
+                s_form_res = httpx.post(
+                    f"{harness_url}/api/forms",
+                    headers=_harness_headers,
+                    json={
+                        "name": f"問診票 - {shop_name}",
+                        "description": "来院前の事前問診票",
+                        "fields": shinsatsu_fields,
+                        "saveToMetadata": True,
+                    },
+                    timeout=10,
+                )
+                if s_form_res.is_success:
+                    shinsatsu_form_id = s_form_res.json().get("data", {}).get("id", "")
 
         # 口コミボタンのLIFF URL（クライアント専用フォームID）
         liff_base = os.getenv("LIFF_URL", "https://liff.line.me/2009607643-QGWpmKya")
         review_form_url = f"{liff_base}?page=review&formId={form_id}" if form_id else f"{liff_base}?page=review"
+        shinsatsu_form_url = f"{liff_base}?page=form&id={shinsatsu_form_id}" if shinsatsu_form_id else ""
 
         rich_menu_id = setup_richmenu(
             token=line_token,
@@ -438,9 +594,10 @@ async def post_line_setup(slug: str, request: Request):
                 booking_url_for_scenario = booking_url or data.get("_lp_url", "")
                 survey_url_for_scenario = data.get("survey_url", "")
                 liff_url = os.getenv("LIFF_URL", "https://liff.line.me/2009607643-QGWpmKya")
-                coupon_title    = data.get("coupon_title", "初回限定クーポン")
-                coupon_orig     = data.get("coupon_original_price", "")
-                coupon_price_v  = data.get("coupon_price", "")
+                _coupon_obj     = data.get("coupon") or {}
+                coupon_title    = data.get("coupon_title") or _coupon_obj.get("title", "初回限定クーポン")
+                coupon_orig     = data.get("coupon_original_price") or _coupon_obj.get("original_price", "")
+                coupon_price_v  = data.get("coupon_price") or _coupon_obj.get("coupon_price", "")
                 coupon_disc_str = f"通常{coupon_orig}→{coupon_price_v}" if (coupon_orig and coupon_price_v) else coupon_price_v
                 scenario_result = build_scenarios_for_client(
                     harness_url=harness_url_base,
@@ -458,6 +615,9 @@ async def post_line_setup(slug: str, request: Request):
                     coupon_discount=coupon_disc_str,
                     revisit_coupon_name=revisit_coupon_name,
                     revisit_coupon_discount=revisit_coupon_discount,
+                    revisit_coupon_timing=int(revisit_coupon_timing),
+                    shinsatsu_form_url=shinsatsu_form_url,
+                    shinsatsu_form_id=shinsatsu_form_id,
                 )
                 data["_qr_url"]           = scenario_result["qr_url"]
                 data["_entry_route_id"]   = scenario_result["entry_route_id"]
@@ -470,6 +630,7 @@ async def post_line_setup(slug: str, request: Request):
         # 結果を保存
         data["_rich_menu_id"] = rich_menu_id
         data["_form_id"] = form_id
+        data["_shinsatsu_form_id"] = shinsatsu_form_id
         data["_google_review_url"] = google_review_url
         path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -490,6 +651,46 @@ async def post_line_setup(slug: str, request: Request):
     except Exception as e:
         import traceback
         raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}\n{traceback.format_exc()}")
+
+
+def _render_flex_preview(content: str) -> str:
+    """Flex JSONをHTML視覚プレビューに変換"""
+    try:
+        flex = json.loads(content)
+        header = flex.get("header", {})
+        body   = flex.get("body", {})
+        footer = flex.get("footer", {})
+        parts  = []
+
+        hc = header.get("contents", [])
+        if hc:
+            bg   = header.get("backgroundColor", "#2C4A7C")
+            text = hc[0].get("text", "")
+            parts.append(f'<div style="background:{bg};color:#fff;padding:8px 12px;font-size:13px;font-weight:700;text-align:center;border-radius:6px 6px 0 0">{text}</div>')
+
+        bc = body.get("contents", [])
+        body_html = ""
+        for item in bc:
+            if item.get("type") == "text":
+                sz  = "18px" if item.get("size") == "xxl" else "12px"
+                fw  = "700"  if item.get("weight") == "bold" else "400"
+                col = item.get("color", "#333")
+                body_html += f'<div style="font-size:{sz};font-weight:{fw};color:{col};text-align:center;padding:3px 0">{item["text"]}</div>'
+        if body_html:
+            parts.append(f'<div style="background:#fff;padding:10px 12px;border-left:1px solid #e0e6f0;border-right:1px solid #e0e6f0">{body_html}</div>')
+
+        fc2 = footer.get("contents", [])
+        if fc2:
+            btn   = fc2[0]
+            label = btn.get("action", {}).get("label", "ボタン")
+            col   = btn.get("color", "#2C4A7C")
+            parts.append(f'<div style="padding:8px;border:1px solid #e0e6f0;border-top:none;border-radius:0 0 6px 6px;background:#fafbfc"><div style="background:{col};color:#fff;padding:8px 0;border-radius:4px;text-align:center;font-size:13px;font-weight:600">{label}</div></div>')
+
+        if not parts:
+            return '[Flex]'
+        return f'<div style="border:1px solid #ddd;border-radius:6px;overflow:hidden;max-width:280px;margin-top:6px">{"".join(parts)}</div>'
+    except Exception:
+        return f'<span style="font-size:11px;color:#aaa">[Flex]</span>'
 
 
 @app.get("/{slug}/dashboard/{token}", response_class=HTMLResponse)
@@ -522,13 +723,25 @@ async def get_dashboard(slug: str, token: str):
                 s = res.json().get("data", {})
                 steps_html = ""
                 for st in sorted(s.get("steps", []), key=lambda x: x.get("stepOrder", 0)):
-                    delay = st.get("delayMinutes", 0)
-                    delay_label = "即時" if delay == 0 else f"{delay // 1440}日後 {st.get('deliveryHour') or ''}時"
-                    content = st.get("messageContent", "").replace("\n", "<br>")
+                    delay    = st.get("delayMinutes", 0)
+                    hour     = st.get("deliveryHour")
+                    hour_str = f" {hour}時" if hour is not None else ""
+                    if delay == 0 and hour is None:
+                        delay_label = "即時"
+                    elif delay == 0:
+                        delay_label = f"当日{hour_str}"
+                    else:
+                        delay_label = f"+{delay // 1440}日後{hour_str}"
+                    msg_type = st.get("messageType", "text")
+                    raw_content = st.get("messageContent", "")
+                    if msg_type == "flex":
+                        content_html = _render_flex_preview(raw_content)
+                    else:
+                        content_html = raw_content.replace("\n", "<br>")
                     steps_html += f"""<div class="step-item">
                       <span class="step-badge">STEP {st.get('stepOrder', '')}</span>
                       <span class="step-timing">{delay_label}</span>
-                      <div class="step-content">{content}</div>
+                      <div class="step-content">{content_html}</div>
                     </div>"""
                 trigger = s.get("triggerType", "")
                 trigger_label = {"friend_add": "友だち追加時", "tag_added": "タグ付与時"}.get(trigger, trigger)
@@ -559,9 +772,18 @@ async def get_dashboard(slug: str, token: str):
           <div class="qr-url-text">{raw_url}</div>
           <a class="btn-dl" href="{img_url}" download="{filename}" target="_blank">画像を保存</a>'''
 
+    # LP URLセクション（LINE-onlyの場合は既存LP URLを表示、未設定なら非表示）
+    if lp_url:
+        lp_url_section = f'''<div class="section">
+      <div class="section-title">ホームページ・LP URL</div>
+      <div class="lp-url-box"><a href="{lp_url}" target="_blank" rel="noopener">{lp_url}</a></div>
+    </div>'''
+    else:
+        lp_url_section = ""
+
     html = DASHBOARD_PATH.read_text(encoding="utf-8")
     html = html.replace("{{SHOP_NAME}}", shop_name)
-    html = html.replace("{{LP_URL}}", lp_url)
+    html = html.replace("{{LP_URL_SECTION}}", lp_url_section)
     html = html.replace("{{LP_QR_BLOCK}}", _qr_block(lp_qr_img, lp_qr_url, "qr_lp.png"))
     html = html.replace("{{CHECKIN_QR_BLOCK}}", _qr_block(checkin_qr_img, checkin_qr_url, "qr_checkin.png"))
     html = html.replace("{{SCENARIOS_HTML}}", scenarios_html)

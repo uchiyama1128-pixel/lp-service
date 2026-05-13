@@ -51,7 +51,7 @@
 
     /* QRコード */
     .qr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    @media(max-width: 480px) { .qr-grid { grid-template-columns: 1fr; } }
+    @media(max-width: 640px) { .qr-grid { grid-template-columns: 1fr; } }
     .qr-card {
       border: 1px solid #e0e6f0;
       border-radius: 10px;
@@ -154,18 +154,23 @@
 <body>
   <header>
     <h1>{{SHOP_NAME}} ダッシュボード</h1>
-    <p>LINE・LP管理画面</p>
+    <p>LINE管理画面</p>
   </header>
 
   <div class="container">
 
-    <!-- LP URL -->
-    <div class="section">
-      <div class="section-title">あなたのLP</div>
-      <div class="lp-url-box">
-        <a href="{{LP_URL}}" target="_blank" rel="noopener">{{LP_URL}}</a>
+    <!-- ブックマーク注意 -->
+    <div style="background:#fff8e1;border:1.5px solid #ffcc02;border-radius:10px;padding:14px 18px;margin-bottom:20px;font-size:13px;color:#7a5800;display:flex;gap:10px;align-items:flex-start">
+      <span style="font-size:18px;flex-shrink:0">⚠️</span>
+      <div>
+        <strong>このページのURLをブックマークに保存してください</strong><br>
+        このURLは再発行できません。紛失した場合、ダッシュボードへのアクセスが失われます。<br>
+        今すぐブラウザのブックマークに追加してください。
       </div>
     </div>
+
+    <!-- LP URL（設定時のみ表示） -->
+    {{LP_URL_SECTION}}
 
     <!-- QRコード -->
     <div class="section">
@@ -179,10 +184,10 @@
           {{LP_QR_BLOCK}}
         </div>
 
-        <!-- 来院チェックイン -->
+        <!-- 来院チェックイン（初回・再来院兼用） -->
         <div class="qr-card">
           <h3>来院チェックイン</h3>
-          <p>院内に設置して毎回読み込んでもらうQR<br>来院記録・施術後フォローが自動スタート</p>
+          <p>ご来院のたびに読み込んでもらうQR<br>初回はシナリオC、2回目以降はシナリオDが自動スタート</p>
           {{CHECKIN_QR_BLOCK}}
         </div>
 

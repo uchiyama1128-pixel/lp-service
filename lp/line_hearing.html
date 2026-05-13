@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LINE構築ヒアリング | MARUNAGE</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Hiragino Sans', 'Noto Sans JP', system-ui, sans-serif; background: #f5f7fa; color: #1a1a2e; min-height: 100vh; }
+    header { background: #00897B; color: #fff; padding: 20px 24px; text-align: center; }
+    header h1 { font-size: 20px; font-weight: 700; }
+    header p { font-size: 13px; opacity: 0.85; margin-top: 4px; }
+    .container { max-width: 680px; margin: 0 auto; padding: 32px 20px 60px; }
+    .section { background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+    .section-title { font-size: 15px; font-weight: 700; color: #00897B; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 2px solid #e0f2f1; }
+    .field { margin-bottom: 16px; }
+    label { display: block; font-size: 13px; font-weight: 600; color: #444; margin-bottom: 6px; }
+    label .req { color: #e53935; margin-left: 4px; }
+    label .opt { font-weight: 400; color: #888; font-size: 12px; margin-left: 4px; }
+    input[type="text"], input[type="url"], input[type="tel"], input[type="number"], select {
+      width: 100%; padding: 10px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 14px; transition: border-color 0.2s;
+    }
+    input:focus, select:focus { outline: none; border-color: #00897B; }
+    .hint { font-size: 12px; color: #888; margin-top: 4px; }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 500px) { .row2 { grid-template-columns: 1fr; } }
+    .btn-submit { width: 100%; padding: 16px; background: #00897B; color: #fff; border: none; border-radius: 10px; font-size: 16px; font-weight: 700; cursor: pointer; transition: background 0.2s; margin-top: 8px; }
+    .btn-submit:hover { background: #00796B; }
+    .btn-submit:disabled { background: #aaa; cursor: not-allowed; }
+    .error-msg { display: none; background: #fff3f3; border: 1.5px solid #ffcccc; border-radius: 8px; padding: 12px 16px; color: #c62828; font-size: 13px; margin-bottom: 16px; }
+    .error-msg.show { display: block; }
+    .spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 8px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>LINE構築ヒアリング</h1>
+    <p>入力後、LINE設定ページでチャンネル情報を登録してください</p>
+  </header>
+
+  <div class="container">
+    <div class="error-msg" id="errorMsg"></div>
+
+    <!-- 基本情報 -->
+    <div class="section">
+      <div class="section-title">基本情報</div>
+      <div class="field">
+        <label>店名・院名 <span class="req">*</span></label>
+        <input type="text" id="shop_name" placeholder="例：からだ整体院" required>
+      </div>
+      <div class="field">
+        <label>院長名・担当者名 <span class="opt">任意</span></label>
+        <input type="text" id="owner_name" placeholder="例：田中 太郎">
+        <p class="hint">LINEメッセージの差出人名として使用します</p>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>電話番号 <span class="opt">任意</span></label>
+          <input type="tel" id="phone" placeholder="例：09012345678">
+        </div>
+        <div class="field">
+          <label>住所 <span class="opt">任意</span></label>
+          <input type="text" id="address" placeholder="例：神奈川県藤沢市辻堂1-1-1">
+        </div>
+      </div>
+    </div>
+
+    <!-- URL情報 -->
+    <div class="section">
+      <div class="section-title">URL情報</div>
+      <div class="field">
+        <label>既存LPのURL <span class="opt">任意</span></label>
+        <input type="url" id="lp_url" placeholder="https://example.com/lp/">
+        <p class="hint">リッチメニューのホームページボタンに使用します</p>
+      </div>
+      <div class="field">
+        <label>Web予約URL <span class="opt">任意</span></label>
+        <input type="url" id="booking_url" placeholder="https://example.com/booking/">
+        <p class="hint">未入力の場合はLPのURLが使用されます</p>
+      </div>
+    </div>
+
+    <!-- クーポン情報 -->
+    <div class="section">
+      <div class="section-title">初回クーポン情報</div>
+      <p class="hint" style="margin-bottom:14px;">友だち追加時にお届けするクーポンです</p>
+      <div class="field">
+        <label>クーポン名 <span class="opt">任意</span></label>
+        <input type="text" id="coupon_title" placeholder="例：初回体験コース50%OFFクーポン">
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>通常価格 <span class="opt">任意</span></label>
+          <input type="text" id="coupon_original_price" placeholder="例：6,600円">
+        </div>
+        <div class="field">
+          <label>クーポン価格 <span class="opt">任意</span></label>
+          <input type="text" id="coupon_price" placeholder="例：3,300円">
+        </div>
+      </div>
+    </div>
+
+    <!-- 感想・再来院クーポン -->
+    <div class="section">
+      <div class="section-title">感想クーポン・再来院クーポン</div>
+      <p class="hint" style="margin-bottom:14px;">来院後に感想フォームへ回答してくれた方へのクーポンです</p>
+      <div class="row2">
+        <div class="field">
+          <label>感想クーポン名 <span class="opt">任意</span></label>
+          <input type="text" id="review_coupon_name" placeholder="例：次回来院クーポン">
+        </div>
+        <div class="field">
+          <label>感想クーポン割引 <span class="opt">任意</span></label>
+          <input type="text" id="review_coupon_discount" placeholder="例：500円OFF">
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>再来院クーポン名 <span class="opt">任意</span></label>
+          <input type="text" id="revisit_coupon_name" placeholder="例：再来院クーポン">
+        </div>
+        <div class="field">
+          <label>再来院クーポン割引 <span class="opt">任意</span></label>
+          <input type="text" id="revisit_coupon_discount" placeholder="例：10%OFF">
+        </div>
+      </div>
+      <div class="field">
+        <label>再来院クーポン送付タイミング <span class="opt">任意</span></label>
+        <select id="revisit_coupon_timing">
+          <option value="7">来院から7日後</option>
+          <option value="14" selected>来院から14日後</option>
+          <option value="21">来院から21日後</option>
+          <option value="30">来院から30日後</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="btn-submit" id="submitBtn" onclick="handleSubmit()">
+      LINE設定ページへ進む →
+    </button>
+  </div>
+
+  <script>
+    async function handleSubmit() {
+      const btn = document.getElementById('submitBtn');
+      const errorMsg = document.getElementById('errorMsg');
+      errorMsg.classList.remove('show');
+
+      const shop_name = document.getElementById('shop_name').value.trim();
+      if (!shop_name) { showError('店名・院名を入力してください'); return; }
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>保存中...';
+
+      const payload = {
+        shop_name,
+        owner_name:              document.getElementById('owner_name').value.trim(),
+        phone:                   document.getElementById('phone').value.trim(),
+        address:                 document.getElementById('address').value.trim(),
+        lp_url:                  document.getElementById('lp_url').value.trim(),
+        booking_url:             document.getElementById('booking_url').value.trim(),
+        coupon: {
+          title:          document.getElementById('coupon_title').value.trim(),
+          original_price: document.getElementById('coupon_original_price').value.trim(),
+          coupon_price:   document.getElementById('coupon_price').value.trim(),
+        },
+        review_coupon_name:      document.getElementById('review_coupon_name').value.trim(),
+        review_coupon_discount:  document.getElementById('review_coupon_discount').value.trim(),
+        revisit_coupon_name:     document.getElementById('revisit_coupon_name').value.trim(),
+        revisit_coupon_discount: document.getElementById('revisit_coupon_discount').value.trim(),
+        revisit_coupon_timing:   document.getElementById('revisit_coupon_timing').value,
+      };
+
+      try {
+        const res = await fetch('/line-only/hearing', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.detail || '保存に失敗しました');
+        location.href = data.line_setup_url;
+      } catch (e) {
+        showError(e.message);
+        btn.disabled = false;
+        btn.innerHTML = 'LINE設定ページへ進む →';
+      }
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('errorMsg');
+      el.textContent = msg;
+      el.classList.add('show');
+    }
+  </script>
+</body>
+</html>
