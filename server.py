@@ -383,6 +383,32 @@ async def generate_lp(
         raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}\n{traceback.format_exc()}")
 
 
+@app.post("/lp/rebuild/{slug}")
+async def rebuild_lp(slug: str):
+    """保存済みhearingデータからLPを再生成してFTPデプロイ"""
+    data = get_hearing(slug)
+    if data is None:
+        raise HTTPException(status_code=404, detail="hearing not found")
+    try:
+        copy = generate_lp_copy(data)
+        html = build_lp_html(data, copy, embed_images=True)
+        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        (OUTPUT_DIR / f"{slug}.html").write_text(html, encoding="utf-8")
+        public_url = ""
+        ftp_error = ""
+        try:
+            public_url = _ftp_deploy(html, slug)
+        except Exception as e:
+            ftp_error = str(e)
+        if public_url:
+            data["_lp_url"] = public_url
+            save_hearing(slug, data)
+        return {"success": True, "public_url": public_url or f"/lp/local/{slug}", "ftp_error": ftp_error or None}
+    except Exception as e:
+        import traceback
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}\n{traceback.format_exc()}")
+
+
 @app.get("/lp/local/{slug}", response_class=HTMLResponse)
 async def serve_local_lp(slug: str):
     """ローカル生成済みLPを表示（FTPなしで確認用）"""
