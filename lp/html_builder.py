@@ -11,7 +11,7 @@ _MENU_ASSETS_DIR    = Path(__file__).parent / "assets" / "menu"
 _HERO_ASSETS_DIR    = Path(__file__).parent / "assets" / "hero"
 _COUPON_BANNER_IMG  = Path(__file__).parent / "assets" / "coupon_banner.png"
 _LAUREL_IMG         = Path(__file__).parent / "assets" / "laurel.png"
-_REASONS_ASSETS_DIR = Path("/Users/uchiyamaryuuhei/ai-company/marunage/lp/reasons")
+_REASONS_ASSETS_DIR = Path(__file__).parent / "assets" / "reasons"
 
 # キーワード → イラストファイル名マップ（先にマッチしたものを使用）
 _REASON_ILLUST_MAP = [
