@@ -132,7 +132,7 @@ def save_hearing(slug: str, data: dict) -> None:
     (HEARING_DIR / f"{slug}.json").write_text(payload, encoding="utf-8")
 
 
-def _ftp_deploy(html: str, slug: str) -> str:
+def _ftp_deploy(html: str, slug: str, overwrite: bool = False) -> str:
     import random, string
 
     host     = os.getenv("XSERVER_FTP_HOST", "")
@@ -150,18 +150,24 @@ def _ftp_deploy(html: str, slug: str) -> str:
         ftp.prot_p()
         ftp.set_pasv(True)
 
-        # 既存ディレクトリと被った場合はランダム4文字を末尾に付ける
         final_slug = slug
+        dir_exists = False
         try:
             ftp.cwd("/" + slug)
+            dir_exists = True
+        except ftplib.error_perm:
+            pass
+
+        if dir_exists and not overwrite:
+            # 新規生成時：既存ディレクトリと被ったらランダムサフィックス
             suffix = "".join(random.choices(string.ascii_lowercase + string.digits, k=4))
             final_slug = f"{slug}-{suffix}"
-        except ftplib.error_perm:
-            pass  # ディレクトリなし → そのまま使用
+            ftp.cwd("/")
 
         remote_dir  = "/" + final_slug
         remote_file = remote_dir + "/index.html"
-        ftp.mkd(remote_dir)
+        if not dir_exists or not overwrite:
+            ftp.mkd(remote_dir)
         ftp.storbinary(f"STOR {remote_file}", io.BytesIO(html.encode("utf-8")))
 
     return base_url.rstrip("/") + "/" + urllib.parse.quote(final_slug) + "/"
@@ -456,7 +462,14 @@ async def rebuild_lp(slug: str):
         public_url = ""
         ftp_error = ""
         try:
-            public_url = _ftp_deploy(html, slug)
+            # 既存LP URLのパス部分を取り出して上書きデプロイ
+            existing_url = data.get("_lp_url", "")
+            base_url = os.getenv("XSERVER_BASE_URL", "https://visionroom.jp/lp/")
+            if existing_url and existing_url.startswith(base_url):
+                deploy_slug = existing_url.replace(base_url, "").strip("/")
+            else:
+                deploy_slug = slug
+            public_url = _ftp_deploy(html, deploy_slug, overwrite=True)
         except Exception as e:
             ftp_error = str(e)
         if public_url:
