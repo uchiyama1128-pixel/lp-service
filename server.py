@@ -40,6 +40,55 @@ HEARING_DIR.mkdir(parents=True, exist_ok=True)
 
 app.mount("/static", StaticFiles(directory=str(_BASE / "static")), name="static")
 
+# ─── Cloudflare R2 写真ストア ────────────────────────────────────────
+_R2_BUCKET         = os.getenv("R2_BUCKET", "lp-photos")
+_R2_ACCESS_KEY_ID  = os.getenv("R2_ACCESS_KEY_ID", "")
+_R2_SECRET_KEY     = os.getenv("R2_SECRET_ACCESS_KEY", "")
+
+def _r2_client():
+    import boto3
+    from botocore.config import Config
+    return boto3.client(
+        "s3",
+        endpoint_url=f"https://{os.getenv('CF_ACCOUNT_ID','')}.r2.cloudflarestorage.com",
+        aws_access_key_id=_R2_ACCESS_KEY_ID,
+        aws_secret_access_key=_R2_SECRET_KEY,
+        config=Config(signature_version="s3v4"),
+        region_name="auto",
+    )
+
+def _r2_upload(data: bytes, key: str, content_type: str = "image/jpeg") -> str:
+    if not _R2_ACCESS_KEY_ID or not _R2_SECRET_KEY:
+        return ""
+    _r2_client().put_object(Bucket=_R2_BUCKET, Key=key, Body=data, ContentType=content_type)
+    return key
+
+def _r2_download(key: str) -> bytes | None:
+    if not _R2_ACCESS_KEY_ID or not _R2_SECRET_KEY:
+        return None
+    try:
+        res = _r2_client().get_object(Bucket=_R2_BUCKET, Key=key)
+        return res["Body"].read()
+    except Exception:
+        return None
+
+def _resolve_photos(photos: dict, slug: str) -> dict:
+    """R2キー（r2://...）をローカル一時ファイルに展開して返す"""
+    resolved = {}
+    for k, v in photos.items():
+        if isinstance(v, str) and v.startswith("r2://"):
+            key = v[5:]
+            data = _r2_download(key)
+            if data:
+                suffix = Path(key).suffix or ".jpg"
+                tmp = PHOTOS_DIR / slug / f"{k}{suffix}"
+                tmp.parent.mkdir(parents=True, exist_ok=True)
+                tmp.write_bytes(data)
+                resolved[k] = str(tmp)
+        else:
+            resolved[k] = v
+    return resolved
+
 # ─── Cloudflare D1 hearing ストア ────────────────────────────────────
 _CF_ACCOUNT_ID = os.getenv("CF_ACCOUNT_ID", "")
 _CF_D1_DB_ID   = os.getenv("CF_D1_DB_ID", "05d8fa48-a20c-465d-850f-e022493f95c2")
@@ -324,18 +373,27 @@ async def generate_lp(
         ]:
             if upload and upload.filename:
                 suffix = Path(upload.filename).suffix or ".jpg"
-                dest = photo_dir / f"{field_name}{suffix}"
-                with dest.open("wb") as f:
-                    shutil.copyfileobj(upload.file, f)
-                photos[field_name] = str(dest)
+                data = await upload.read()
+                # R2にアップロード
+                key = f"photos/{url_slug}/{field_name}{suffix}"
+                r2_key = _r2_upload(data, key, f"image/{suffix.lstrip('.')}")
+                if r2_key:
+                    photos[field_name] = f"r2://{r2_key}"
+                else:
+                    # フォールバック：ローカル保存
+                    dest = photo_dir / f"{field_name}{suffix}"
+                    dest.write_bytes(data)
+                    photos[field_name] = str(dest)
 
         hearing_dict["photos"] = photos
+        # HTML生成用にR2キーをローカルに展開
+        hearing_dict_for_build = {**hearing_dict, "photos": _resolve_photos(photos, url_slug)}
 
         # コピー生成
-        copy = generate_lp_copy(hearing_dict)
+        copy = generate_lp_copy(hearing_dict_for_build)
 
         # HTML生成（画像base64埋め込み）
-        html = build_lp_html(hearing_dict, copy, embed_images=True)
+        html = build_lp_html(hearing_dict_for_build, copy, embed_images=True)
 
         # ローカル保存（常に実行）
         try:
@@ -390,8 +448,9 @@ async def rebuild_lp(slug: str):
     if data is None:
         raise HTTPException(status_code=404, detail="hearing not found")
     try:
-        copy = generate_lp_copy(data)
-        html = build_lp_html(data, copy, embed_images=True)
+        data_for_build = {**data, "photos": _resolve_photos(data.get("photos", {}), slug)}
+        copy = generate_lp_copy(data_for_build)
+        html = build_lp_html(data_for_build, copy, embed_images=True)
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
         (OUTPUT_DIR / f"{slug}.html").write_text(html, encoding="utf-8")
         public_url = ""
