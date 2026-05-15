@@ -78,14 +78,22 @@ _PAIN_KEYWORD_MAP = [
     (["産後", "骨盤"],                                  "sango"),
 ]
 
-def _match_pain_photo(pain_text: str, gender_prefix: str) -> str:
-    """悩みテキストにマッチする写真パスを返す。見つからなければ katakori。"""
+_PAIN_FALLBACK_ORDER = ["katakori", "koshi_itami", "karada_omoi", "kata_itami", "neko_ze", "zutsuu", "ashi_itami"]
+
+def _match_pain_photo(pain_text: str, gender_prefix: str, used: set | None = None) -> str:
+    """悩みテキストにマッチする写真パスを返す。使用済み写真は避ける。"""
+    if used is None:
+        used = set()
     for keywords, key in _PAIN_KEYWORD_MAP:
         if any(kw in pain_text for kw in keywords):
             p = _PAIN_ASSETS_DIR / f"{gender_prefix}_{key}.jpg"
-            if p.exists():
+            if p.exists() and str(p) not in used:
                 return str(p)
-    # fallback
+    # fallback: 未使用のものを順番に試す
+    for key in _PAIN_FALLBACK_ORDER:
+        p = _PAIN_ASSETS_DIR / f"{gender_prefix}_{key}.jpg"
+        if p.exists() and str(p) not in used:
+            return str(p)
     p = _PAIN_ASSETS_DIR / f"{gender_prefix}_katakori.jpg"
     return str(p) if p.exists() else ""
 
@@ -237,6 +245,7 @@ def build_lp_html(hearing: dict, copy: dict, embed_images: bool = False) -> str:
     # ── お悩みカード ───────────────────────────────────
     pain_items = pain.get("items", [])
     pain_cards_html = ""
+    _used_pain_photos: set = set()
     for item in pain_items[:3]:
         # 新形式: {"text": "...", "sub": "..."} / 旧形式: "文字列"
         if isinstance(item, dict):
@@ -245,7 +254,9 @@ def build_lp_html(hearing: dict, copy: dict, embed_images: bool = False) -> str:
         else:
             _text = item
             _sub  = ""
-        _matched_path = _match_pain_photo(_text, _gender_prefix)
+        _matched_path = _match_pain_photo(_text, _gender_prefix, _used_pain_photos)
+        if _matched_path:
+            _used_pain_photos.add(_matched_path)
         if _matched_path:
             _src = _to_data_uri(_matched_path) if embed_images else _matched_path
             _circle_inner = f'<img src="{_src}" alt="" class="pain-card-img">'
