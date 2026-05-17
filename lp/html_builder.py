@@ -538,7 +538,7 @@ def build_lp_html(hearing: dict, copy: dict, embed_images: bool = False) -> str:
     .intro-checks {{ list-style: none; display: flex; flex-direction: column; gap: 16px; }}
     .intro-check-item {{ display: flex; align-items: flex-start; gap: 10px; font-size: 15px; color: rgba(255,255,255,.92); line-height: 1.6; }}
     .intro-check-icon {{ flex-shrink: 0; margin-top: 3px; width: 19px; height: 19px; background: rgba(255,255,255,.3); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #fff; font-weight: 900; }}
-    .intro-owner-circle {{ width: 200px; height: 200px; border-radius: 16px; overflow: hidden; flex-shrink: 0; border: 3px solid rgba(255,255,255,.4); box-shadow: 0 4px 16px rgba(0,0,0,0.2); }}
+    .intro-owner-circle {{ width: 280px; height: 180px; border-radius: 16px; overflow: hidden; flex-shrink: 0; border: 3px solid rgba(255,255,255,.4); box-shadow: 0 4px 16px rgba(0,0,0,0.2); }}
     .intro-owner-circle img {{ width: 100%; height: 100%; object-fit: cover; object-position: center top; display: block; }}
     @media (max-width: 900px)  {{ .intro-wrap {{ padding: 24px; }} .intro-2col {{ grid-template-columns: 1fr; }} .intro-photo {{ padding: 0 16px 16px; min-height: 200px; }} }}
     @media (max-width: 540px)  {{ .intro-left {{ grid-template-columns: 1fr; }} .intro-info {{ padding: 28px 24px; }} .intro-target {{ padding: 28px 24px; }} }}
@@ -702,7 +702,7 @@ def build_lp_html(hearing: dict, copy: dict, embed_images: bool = False) -> str:
       .intro-left {{ grid-template-columns: 1fr; }}
       .intro-photo {{ display: none; }}
       .intro-target {{ padding: 28px 20px; gap: 20px; }}
-      .intro-owner-circle {{ width: 100px; height: 100px; }}
+      .intro-owner-circle {{ width: 140px; height: 90px; }}
     }}
     @media (max-width: 768px) {{
       /* Sections */
