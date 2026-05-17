@@ -49,20 +49,31 @@ def _match_reason_illust(title: str, body: str = "") -> str:
     return ""
 
 _MENU_KEYWORD_MAP = [
-    (["肩こり", "肩", "首"],         "katakori"),
-    (["腰痛", "腰"],                  "koshi"),
-    (["骨盤", "産後"],               "kotsuban"),
-    (["脚", "足", "むくみ", "下肢"], "ashi"),
+    (["肩こり", "肩", "首"],              "katakori"),
+    (["腰痛", "腰"],                       "koshi"),
+    (["骨盤", "産後"],                    "kotsuban"),
+    (["脚", "足", "むくみ", "下肢"],      "ashi"),
+    (["猫背", "姿勢", "背中", "矯正"],    "koshi"),
 ]
+_MENU_FALLBACK_ORDER = ["zentai", "katakori", "koshi", "kotsuban", "ashi"]
 
-def _match_menu_photo(name: str, gender_prefix: str) -> tuple[str, str]:
-    """コース名にマッチする (写真パス, ラベルPNGパス) を返す。デフォルトは zentai。"""
+def _match_menu_photo(name: str, gender_prefix: str, used: set | None = None) -> tuple[str, str]:
+    """コース名にマッチする (写真パス, ラベルPNGパス) を返す。デフォルトは zentai。used で重複回避。"""
+    if used is None:
+        used = set()
     key = "zentai"
     for keywords, k in _MENU_KEYWORD_MAP:
         if any(kw in name for kw in keywords):
             key = k
             break
     col = f"{gender_prefix}_a"
+    # 重複していれば fallback
+    candidates = [key] + [k for k in _MENU_FALLBACK_ORDER if k != key]
+    for candidate in candidates:
+        photo = _MENU_ASSETS_DIR / f"{candidate}_{col}.jpg"
+        label = _MENU_ASSETS_DIR / f"label_{candidate}.png"
+        if photo.exists() and str(photo) not in used:
+            return (str(photo), str(label) if label.exists() else "")
     photo = _MENU_ASSETS_DIR / f"{key}_{col}.jpg"
     label = _MENU_ASSETS_DIR / f"label_{key}.png"
     return (str(photo) if photo.exists() else "", str(label) if label.exists() else "")
@@ -357,9 +368,11 @@ def build_lp_html(hearing: dict, copy: dict, embed_images: bool = False) -> str:
 
     # ── メニューカード ─────────────────────────────────
     menu_cards_html = ""
+    _used_menu_photos: set = set()
     for item in hearing.get("main_menu", []):
-        _photo_path, _ = _match_menu_photo(item["name"], _gender_prefix)
+        _photo_path, _ = _match_menu_photo(item["name"], _gender_prefix, _used_menu_photos)
         if _photo_path:
+            _used_menu_photos.add(_photo_path)
             _msrc = _to_data_uri(_photo_path) if embed_images else _photo_path
             _mphoto_html = f'<div class="menu-card-img-wrap"><img src="{_msrc}" alt="{item["name"]}" class="menu-card-img"></div>'
         else:
