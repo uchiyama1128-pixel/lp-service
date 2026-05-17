@@ -532,13 +532,13 @@ def build_lp_html(hearing: dict, copy: dict, embed_images: bool = False) -> str:
     .intro-photo {{ padding: 20px 20px 20px 0; display: flex; align-items: center; }}
     .intro-photo img {{ width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 4px; }}
     .intro-photo-blank {{ width: 100%; height: 100%; min-height: 180px; background: #e8e8e8; border-radius: 4px; display: block; }}
-    .intro-target {{ background: color-mix(in srgb, var(--p) 80%, #fff); padding: 40px 40px; display: flex; align-items: center; gap: 32px; border: 1px solid rgba(255,255,255,.2); box-shadow: 0 4px 20px rgba(0,0,0,0.12); }}
+    .intro-target {{ background: color-mix(in srgb, var(--p) 80%, #fff); padding: 24px 40px; display: flex; align-items: center; gap: 32px; border: 1px solid rgba(255,255,255,.2); box-shadow: 0 4px 20px rgba(0,0,0,0.12); }}
     .intro-target-body {{ flex: 1; display: flex; flex-direction: column; justify-content: center; }}
     .intro-target-ja   {{ font-family: var(--serif); font-size: clamp(16px,1.8vw,22px); font-weight: 700; color: #fff; line-height: 1.65; margin-bottom: 28px; }}
     .intro-checks {{ list-style: none; display: flex; flex-direction: column; gap: 16px; }}
     .intro-check-item {{ display: flex; align-items: flex-start; gap: 10px; font-size: 15px; color: rgba(255,255,255,.92); line-height: 1.6; }}
     .intro-check-icon {{ flex-shrink: 0; margin-top: 3px; width: 19px; height: 19px; background: rgba(255,255,255,.3); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #fff; font-weight: 900; }}
-    .intro-owner-circle {{ width: 200px; height: 200px; border-radius: 50%; overflow: hidden; flex-shrink: 0; border: 3px solid rgba(255,255,255,.4); box-shadow: 0 4px 16px rgba(0,0,0,0.2); }}
+    .intro-owner-circle {{ width: 200px; height: 200px; border-radius: 16px; overflow: hidden; flex-shrink: 0; border: 3px solid rgba(255,255,255,.4); box-shadow: 0 4px 16px rgba(0,0,0,0.2); }}
     .intro-owner-circle img {{ width: 100%; height: 100%; object-fit: cover; object-position: center top; display: block; }}
     @media (max-width: 900px)  {{ .intro-wrap {{ padding: 24px; }} .intro-2col {{ grid-template-columns: 1fr; }} .intro-photo {{ padding: 0 16px 16px; min-height: 200px; }} }}
     @media (max-width: 540px)  {{ .intro-left {{ grid-template-columns: 1fr; }} .intro-info {{ padding: 28px 24px; }} .intro-target {{ padding: 28px 24px; }} }}
