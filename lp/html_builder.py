@@ -361,9 +361,9 @@ def build_lp_html(hearing: dict, copy: dict, embed_images: bool = False) -> str:
         _photo_path, _ = _match_menu_photo(item["name"], _gender_prefix)
         if _photo_path:
             _msrc = _to_data_uri(_photo_path) if embed_images else _photo_path
-            _mphoto_html = f'<img src="{_msrc}" alt="{item["name"]}" class="menu-card-img">'
+            _mphoto_html = f'<div class="menu-card-img-wrap"><img src="{_msrc}" alt="{item["name"]}" class="menu-card-img"></div>'
         else:
-            _mphoto_html = '<div class="menu-card-img-blank"></div>'
+            _mphoto_html = '<div class="menu-card-img-wrap menu-card-img-blank"></div>'
         _orig_price = item.get("original_price", "")
         _desc       = item.get("description", "")
         menu_cards_html += f"""
@@ -623,8 +623,9 @@ def build_lp_html(hearing: dict, copy: dict, embed_images: bool = False) -> str:
     /* ─── MENU ────────────────────────────────────── */
     .menu-grid {{ display: grid; grid-template-columns: repeat(3,1fr); gap: 20px; }}
     .menu-card  {{ background: #fff; border-radius: 10px; overflow: hidden; border: 1px solid var(--bd); display: flex; flex-direction: column; box-shadow: 0 2px 12px rgba(0,0,0,.06); }}
-    .menu-card-img {{ width: 100%; aspect-ratio: 4/3; object-fit: cover; object-position: center top; display: block; transform: scale(1.2); transform-origin: top center; }}
-    .menu-card-img-blank {{ width: 100%; aspect-ratio: 4/3; background: linear-gradient(135deg,var(--cream),#e0d5c8); display: block; }}
+    .menu-card-img-wrap {{ width: 100%; aspect-ratio: 4/3; overflow: hidden; }}
+    .menu-card-img {{ width: 100%; height: 120%; object-fit: cover; object-position: center top; display: block; }}
+    .menu-card-img-blank {{ background: linear-gradient(135deg,var(--cream),#e0d5c8); }}
     .menu-card-inner {{ padding: 20px 20px 24px; flex: 1; display: flex; flex-direction: column; }}
     .menu-card-name  {{ font-family: var(--serif); font-size: 18px; font-weight: 700; color: var(--dark); margin-bottom: 8px; line-height: 1.5; }}
     .menu-card-desc  {{ font-size: 14px; color: #888; line-height: 1.7; margin-bottom: 14px; flex: 1; }}
