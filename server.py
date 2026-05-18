@@ -421,6 +421,7 @@ async def generate_lp(
         try:
             saved_slug = url_slug if not ftp_error else url_slug
             hearing_dict["_lp_url"] = public_url
+            hearing_dict["_lp_copy"] = copy  # 高速リビルド用にcopyを保存
             # ダッシュボード用ランダムトークン（未設定の場合のみ発行）
             if not hearing_dict.get("_dashboard_token"):
                 hearing_dict["_dashboard_token"] = secrets.token_urlsafe(24)
@@ -447,6 +448,33 @@ async def generate_lp(
         raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}\n{traceback.format_exc()}")
 
 
+@app.patch("/lp/hearing/{slug}")
+async def update_hearing(slug: str, request: Request):
+    """hearing の一部フィールドを更新し、保存済みcopyでLPを高速リビルド（AI再生成なし）"""
+    data = get_hearing(slug)
+    if data is None:
+        raise HTTPException(status_code=404, detail="hearing not found")
+    updates = await request.json()
+    data.update(updates)
+    save_hearing(slug, data)
+    copy = data.get("_lp_copy")
+    if not copy:
+        raise HTTPException(status_code=400, detail="No saved copy. Run full rebuild first.")
+    try:
+        data_for_build = {**data, "photos": _resolve_photos(data.get("photos", {}), slug)}
+        html = build_lp_html(data_for_build, copy, embed_images=True)
+        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        (OUTPUT_DIR / f"{slug}.html").write_text(html, encoding="utf-8")
+        existing_url = data.get("_lp_url", "")
+        base_url = os.getenv("XSERVER_BASE_URL", "https://visionroom.jp/lp/")
+        deploy_slug = existing_url.replace(base_url, "").strip("/") if existing_url.startswith(base_url) else slug
+        public_url = _ftp_deploy(html, deploy_slug, overwrite=True)
+        return {"success": True, "public_url": public_url}
+    except Exception as e:
+        import traceback
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}\n{traceback.format_exc()}")
+
+
 @app.post("/lp/rebuild/{slug}")
 async def rebuild_lp(slug: str):
     """保存済みhearingデータからLPを再生成してFTPデプロイ"""
@@ -455,7 +483,7 @@ async def rebuild_lp(slug: str):
         raise HTTPException(status_code=404, detail="hearing not found")
     try:
         data_for_build = {**data, "photos": _resolve_photos(data.get("photos", {}), slug)}
-        copy = generate_lp_copy(data_for_build)
+        copy = data.get("_lp_copy") or generate_lp_copy(data_for_build)
         html = build_lp_html(data_for_build, copy, embed_images=True)
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
         (OUTPUT_DIR / f"{slug}.html").write_text(html, encoding="utf-8")
