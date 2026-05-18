@@ -554,7 +554,7 @@ def build_lp_html(hearing: dict, copy: dict, embed_images: bool = False) -> str:
     .intro-owner-circle {{ width: 46%; flex-shrink: 0; display: flex; padding: 16px 16px 16px 12px; }}
     .intro-owner-circle img {{ width: 100%; object-fit: cover; object-position: center top; display: block; flex: 1; border-radius: 8px; }}
     @media (max-width: 900px)  {{ .intro-wrap {{ padding: 24px; }} .intro-2col {{ grid-template-columns: 1fr; }} .intro-photo {{ padding: 0 16px 16px; min-height: 200px; }} }}
-    @media (max-width: 540px)  {{ .intro-left {{ grid-template-columns: 1fr; }} .intro-info {{ padding: 28px 24px; }} .intro-target {{ padding: 28px 24px; }} }}
+    @media (max-width: 540px)  {{ .intro-left {{ grid-template-columns: 1fr; }} .intro-info {{ padding: 28px 24px; }} .intro-target {{ padding: 28px 24px; }} .intro-owner-circle {{ display: none; }} }}
 
     /* ─── PAIN ────────────────────────────────────── */
     .pain-wide {{ max-width: 1160px; margin: 0 auto; padding: 0 32px; }}
