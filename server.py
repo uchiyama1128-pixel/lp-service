@@ -502,6 +502,7 @@ async def rebuild_lp(slug: str):
             ftp_error = str(e)
         if public_url:
             data["_lp_url"] = public_url
+            data["_lp_copy"] = copy
             save_hearing(slug, data)
         return {"success": True, "public_url": public_url or f"/lp/local/{slug}", "ftp_error": ftp_error or None}
     except Exception as e:
