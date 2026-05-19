@@ -357,7 +357,7 @@ def _scenario_templates(shop_name: str, owner_name: str, booking_url: str,
         {
             "name": f"シナリオC-分岐A｜口コミ候補（星4〜5）【{shop_name}】",
             "triggerType": "tag_added",
-            "triggerTagName": f"{shop_name}_高評価",
+            "triggerTagName": "口コミ候補",
             "steps": [
                 {"stepOrder": 1, "delayMinutes": 0, "deliveryHour": None, "messageType": "text",
                  "messageContent": R("{{name}}さん、嬉しいお声をありがとうございます。\n\nお約束の次回来院クーポンをお届けします。")},
@@ -377,7 +377,7 @@ def _scenario_templates(shop_name: str, owner_name: str, booking_url: str,
         {
             "name": f"シナリオC-分岐B｜改善フィードバック（星1〜3）【{shop_name}】",
             "triggerType": "tag_added",
-            "triggerTagName": f"{shop_name}_低評価",
+            "triggerTagName": "改善フィードバック",
             "steps": [
                 {"stepOrder": 1, "delayMinutes": 0, "deliveryHour": None, "messageType": "text",
                  "messageContent": R("{{name}}さん、正直なご意見をありがとうございます。\n\nご期待に沿えなかった点があったようで、大変申し訳ありません。\n\nお約束のクーポンをお届けします。")},
@@ -472,8 +472,8 @@ def build_scenarios_for_client(
         "existing":      f"{shop_name}_既存顧客",
         "re_checkin":    "既存顧客",              # チェックインエンドポイントと一致
         "survey_done":   "アンケート回答済み",
-        "high_rating":   f"{shop_name}_高評価",
-        "low_rating":    f"{shop_name}_低評価",
+        "high_rating":   "口コミ候補",
+        "low_rating":    "改善フィードバック",
         "review_coupon": f"{shop_name}_感想クーポン配布済み",
     }
 
