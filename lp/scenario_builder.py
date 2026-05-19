@@ -537,10 +537,10 @@ def build_scenarios_for_client(
     # ── シナリオ + ステップ作成 ─────────────────────────────────────
     scenario_ids = {}
     for tmpl in templates:
-        # 同名シナリオが既存なら再利用
+        # 同名シナリオが既存なら削除して再作成（ステップ内容を最新化）
         if tmpl["name"] in existing_scenario_names:
-            scenario_ids[tmpl["name"]] = existing_scenario_names[tmpl["name"]]
-            continue
+            old_id = existing_scenario_names[tmpl["name"]]
+            httpx.delete(f"{harness_url}/api/scenarios/{old_id}", headers=headers, timeout=15)
 
         # triggerTagName → triggerTagId 解決（全タグ対象）
         trigger_tag_id = None
