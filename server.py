@@ -720,7 +720,8 @@ async def post_line_setup(slug: str, request: Request):
 
         # 口コミボタンのLIFF URL（クライアント専用フォームID）
         liff_base = os.getenv("LIFF_URL", "https://liff.line.me/2009607643-QGWpmKya")
-        review_form_url = f"{liff_base}?page=review&formId={form_id}" if form_id else f"{liff_base}?page=review"
+        _laccount_id = data.get("line_account_id", "")
+        review_form_url = f"{liff_base}?page=review&formId={form_id}&account={_laccount_id}" if form_id else f"{liff_base}?page=review&account={_laccount_id}"
         shinsatsu_form_url = f"{liff_base}?page=form&id={shinsatsu_form_id}" if shinsatsu_form_id else ""
 
         rich_menu_id = setup_richmenu(
