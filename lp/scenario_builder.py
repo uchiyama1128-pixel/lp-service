@@ -522,17 +522,15 @@ def build_scenarios_for_client(
         shinsatsu_form_url=shinsatsu_form_url,
     )
 
-    # ── 既存シナリオ一覧取得（重複防止） ──────────────────────────
-    existing_scenarios_res = httpx.get(
-        f"{harness_url}/api/scenarios",
-        headers=headers,
-        params={"lineAccountId": line_account_id},
-        timeout=15,
-    )
-    # このlineAccountIdに紐づく既存シナリオを全削除（旧名称・旧設定の残骸を除去）
-    if existing_scenarios_res.is_success:
-        for s in existing_scenarios_res.json().get("data", []):
-            httpx.delete(f"{harness_url}/api/scenarios/{s['id']}", headers=headers, timeout=15)
+    # ── 既存シナリオ一覧取得（全削除） ──────────────────────────────
+    # このshop_nameを名前に含む全シナリオを削除。
+    # lineAccountId指定のみだとNULLのまま残る旧設定シナリオが全アカウントに発火するため、
+    # shop_name一致で完全に除去する。
+    _all_sc_res = httpx.get(f"{harness_url}/api/scenarios", headers=headers, timeout=15)
+    if _all_sc_res.is_success:
+        for s in _all_sc_res.json().get("data", []):
+            if f"【{shop_name}】" in s.get("name", ""):
+                httpx.delete(f"{harness_url}/api/scenarios/{s['id']}", headers=headers, timeout=15)
 
     # ── シナリオ + ステップ作成 ─────────────────────────────────────
     scenario_ids = {}
