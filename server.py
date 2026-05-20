@@ -719,7 +719,7 @@ async def post_line_setup(slug: str, request: Request):
                     shinsatsu_form_id = s_form_res.json().get("data", {}).get("id", "")
 
         # 口コミボタンのLIFF URL（クライアント専用フォームID）
-        liff_base = os.getenv("LIFF_URL", "https://liff.line.me/2009607643-QGWpmKya")
+        liff_base = os.getenv("LIFF_URL", "https://liff.line.me/2009607643-QGWpmE45")
         _laccount_id = data.get("line_account_id", "")
         review_form_url = f"{liff_base}?page=review&formId={form_id}&account={_laccount_id}" if form_id else f"{liff_base}?page=review&account={_laccount_id}"
         shinsatsu_form_url = f"{liff_base}?page=form&id={shinsatsu_form_id}" if shinsatsu_form_id else ""
@@ -758,7 +758,7 @@ async def post_line_setup(slug: str, request: Request):
                 owner_name = data.get("owner_name") or data.get("doctor_name") or shop_name
                 booking_url_for_scenario = booking_url or data.get("_lp_url", "")
                 survey_url_for_scenario = data.get("survey_url", "")
-                liff_url = os.getenv("LIFF_URL", "https://liff.line.me/2009607643-QGWpmKya")
+                liff_url = os.getenv("LIFF_URL", "https://liff.line.me/2009607643-QGWpmE45")
                 _coupon_obj     = data.get("coupon") or {}
                 coupon_title    = data.get("coupon_title") or _coupon_obj.get("title", "初回限定クーポン")
                 coupon_orig     = data.get("coupon_original_price") or _coupon_obj.get("original_price", "")
