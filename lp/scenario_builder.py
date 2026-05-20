@@ -529,18 +529,14 @@ def build_scenarios_for_client(
         params={"lineAccountId": line_account_id},
         timeout=15,
     )
-    existing_scenario_names: dict[str, str] = {}  # name → id
+    # このlineAccountIdに紐づく既存シナリオを全削除（旧名称・旧設定の残骸を除去）
     if existing_scenarios_res.is_success:
         for s in existing_scenarios_res.json().get("data", []):
-            existing_scenario_names[s["name"]] = s["id"]
+            httpx.delete(f"{harness_url}/api/scenarios/{s['id']}", headers=headers, timeout=15)
 
     # ── シナリオ + ステップ作成 ─────────────────────────────────────
     scenario_ids = {}
     for tmpl in templates:
-        # 同名シナリオが既存なら削除して再作成（ステップ内容を最新化）
-        if tmpl["name"] in existing_scenario_names:
-            old_id = existing_scenario_names[tmpl["name"]]
-            httpx.delete(f"{harness_url}/api/scenarios/{old_id}", headers=headers, timeout=15)
 
         # triggerTagName → triggerTagId 解決（全タグ対象）
         trigger_tag_id = None
