@@ -1123,6 +1123,7 @@ async def set_appointment(slug: str, friend_id: str, token: str, request: Reques
 
     body = await request.json()
     appointment_date = body.get("appointment_date", "").strip()  # "YYYY-MM-DD" or ""
+    appointment_time = body.get("appointment_time", "").strip()  # "HH:MM" or ""
 
     harness_url = os.getenv("LINE_HARNESS_API_URL", "https://line-crm-worker.uchiyama1128.workers.dev")
     harness_key = os.getenv("LINE_HARNESS_API_KEY", "")
@@ -1131,11 +1132,25 @@ async def set_appointment(slug: str, friend_id: str, token: str, request: Reques
     headers = {"Authorization": f"Bearer {harness_key}", "Content-Type": "application/json"}
     shop_name = data.get("shop_name", "")
 
-    # 1. friendのmetadataにnext_appointmentを保存（表示用）
+    # 日本語表示用の日時文字列を生成: "5月25日 14:00" など
+    next_appointment_display = ""
+    if appointment_date:
+        try:
+            from datetime import datetime as _dt
+            d = _dt.strptime(appointment_date, "%Y-%m-%d")
+            next_appointment_display = f"{d.month}月{d.day}日"
+            if appointment_time:
+                next_appointment_display += f" {appointment_time}"
+        except Exception:
+            next_appointment_display = appointment_date
+            if appointment_time:
+                next_appointment_display += f" {appointment_time}"
+
+    # 1. friendのmetadataにnext_appointmentを保存（表示用日本語文字列）
     httpx.put(
         f"{harness_url}/api/friends/{friend_id}/metadata",
         headers=headers,
-        json={"next_appointment": appointment_date},
+        json={"next_appointment": next_appointment_display},
         timeout=10,
     )
 
@@ -1150,7 +1165,7 @@ async def set_appointment(slug: str, friend_id: str, token: str, request: Reques
         pass
 
     if not appointment_date:
-        return {"success": True}
+        return {"success": True, "next_appointment": ""}
 
     # 3. リマインダーテンプレートを取得または作成
     reminder_id = data.get("_reminder_id", "")
@@ -1163,10 +1178,10 @@ async def set_appointment(slug: str, friend_id: str, token: str, request: Reques
         )
         if r.is_success:
             reminder_id = r.json()["data"]["id"]
-            # ステップ追加: 3日前・当日
+            # ステップ追加: 3日前・当日（{{next_appointment}}で日時を自動挿入）
             for offset, msg in [
-                (-4320, f"【{shop_name}】3日後のご予約をお忘れなく！お待ちしております。"),
-                (0,     f"【{shop_name}】本日のご予約をお待ちしています！どうぞよろしくお願いします。"),
+                (-4320, f"【{shop_name}】3日後（{{{{next_appointment}}}}）のご予約をお忘れなく！お待ちしております。"),
+                (0,     f"【{shop_name}】本日（{{{{next_appointment}}}}）のご予約をお待ちしています！どうぞよろしくお願いします。"),
             ]:
                 httpx.post(
                     f"{harness_url}/api/reminders/{reminder_id}/steps",
@@ -1177,7 +1192,7 @@ async def set_appointment(slug: str, friend_id: str, token: str, request: Reques
             data["_reminder_id"] = reminder_id
             save_hearing(slug, data)
 
-    # 4. 新しいリマインダー登録
+    # 4. 新しいリマインダー登録（targetDateは日付のみ）
     if reminder_id:
         httpx.post(
             f"{harness_url}/api/reminders/{reminder_id}/enroll/{friend_id}",
@@ -1186,7 +1201,7 @@ async def set_appointment(slug: str, friend_id: str, token: str, request: Reques
             timeout=10,
         )
 
-    return {"success": True, "appointment_date": appointment_date}
+    return {"success": True, "next_appointment": next_appointment_display}
 
 
 @app.patch("/{slug}/scenario-step/{token}")

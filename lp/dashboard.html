@@ -212,7 +212,7 @@
     /* 次回予約 */
     .appt-row { display: flex; align-items: center; gap: 10px; margin-top: 6px; flex-wrap: wrap; }
     .appt-input {
-      flex: 1; min-width: 140px; padding: 8px 10px; border: 1.5px solid #dce5f5;
+      padding: 8px 10px; border: 1.5px solid #dce5f5;
       border-radius: 6px; font-size: 14px; font-family: inherit;
     }
     .appt-input:focus { outline: none; border-color: #2C4A7C; }
@@ -353,10 +353,18 @@
 
       // 次回予約
       const apptVal = f.next_appointment || '';
+      // apptVal は "YYYY-MM-DD HH:MM" 形式 or "YYYY-MM-DD" or 日本語表記を想定
+      // 入力フォームには YYYY-MM-DD と HH:MM に分解してセット
+      let apptDatePart = '', apptTimePart = '';
+      if (apptVal) {
+        const m = apptVal.match(/^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}:\d{2}))?/);
+        if (m) { apptDatePart = m[1] || ''; apptTimePart = m[2] || ''; }
+      }
       html += `<div class="drawer-section">
         <div class="drawer-section-title">次回予約</div>
         <div class="appt-row">
-          <input type="date" class="appt-input" id="apptInput" value="${esc(apptVal)}">
+          <input type="date" class="appt-input" id="apptDateInput" value="${esc(apptDatePart)}">
+          <input type="time" class="appt-input" id="apptTimeInput" value="${esc(apptTimePart)}" placeholder="時間">
           <button class="btn-appt-save" onclick="saveAppointment()">保存</button>
           ${apptVal ? `<button class="btn-appt-clear" onclick="clearAppointment()">削除</button>` : ''}
         </div>
@@ -407,17 +415,18 @@
 
     // ── 次回予約 ──────────────────────────────────────────
     async function saveAppointment() {
-      const date = document.getElementById('apptInput')?.value || '';
-      if (!date) return;
-      await _postAppointment(date);
+      const date = document.getElementById('apptDateInput')?.value || '';
+      const time = document.getElementById('apptTimeInput')?.value || '';
+      if (!date) return alert('日付を入力してください');
+      await _postAppointment(date, time);
     }
 
     async function clearAppointment() {
       if (!confirm('予約日を削除してリマインドをキャンセルしますか？')) return;
-      await _postAppointment('');
+      await _postAppointment('', '');
     }
 
-    async function _postAppointment(date) {
+    async function _postAppointment(date, time) {
       if (!_currentFriendId) return;
       const btn = document.querySelector('.btn-appt-save');
       if (btn) { btn.disabled = true; btn.textContent = '保存中...'; }
@@ -425,19 +434,18 @@
         const res = await fetch(`/${SLUG}/appointment/${_currentFriendId}/${TOKEN}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ appointment_date: date }),
+          body: JSON.stringify({ appointment_date: date, appointment_time: time }),
         });
         const json = await res.json();
         if (!res.ok) throw new Error(json.detail || '保存に失敗しました');
 
-        // キャッシュ更新
+        // キャッシュ更新（表示用文字列を保持）
+        const stored = json.next_appointment || (date ? `${date}${time ? ' ' + time : ''}` : '');
         const f = _cachedData.friends.find(x => x.id === _currentFriendId);
-        if (f) f.next_appointment = date;
+        if (f) f.next_appointment = stored;
 
-        // テーブルのバッジ更新（次回予約列がある場合）
         _refreshTable();
-
-        alert(date ? `次回予約日を ${date} に設定しました。3日前と当日にリマインドを送信します。` : '予約日を削除しました');
+        alert(date ? `次回予約を設定しました。3日前と当日にリマインドを送信します。` : '予約日を削除しました');
         closeDrawer();
       } catch (e) {
         alert(e.message || '保存に失敗しました');
