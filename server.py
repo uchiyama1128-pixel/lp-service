@@ -896,17 +896,25 @@ async def get_dashboard(slug: str, token: str):
                         delay_label = f"当日{hour_str}"
                     else:
                         delay_label = f"+{delay // 1440}日後{hour_str}"
+                    import html as _html
                     msg_type = st.get("messageType", "text")
                     raw_content = st.get("messageContent", "")
                     step_id = st.get("id", "")
+                    escaped = _html.escape(raw_content)
                     if msg_type == "flex":
                         content_html = _render_flex_preview(raw_content)
                         edit_btn = ""
+                        editor_html = ""
                     else:
-                        import html as _html
-                        escaped = _html.escape(raw_content)
                         content_html = raw_content.replace("\n", "<br>")
                         edit_btn = f"""<button class="step-edit-btn" onclick="editStep(this)" data-scenario-id="{sid}" data-step-id="{step_id}" data-content="{escaped}">編集</button>"""
+                        editor_html = f"""<div class="step-editor" id="step-editor-{step_id}" style="display:none;">
+                        <textarea class="step-textarea" id="step-ta-{step_id}">{escaped}</textarea>
+                        <div class="step-editor-actions">
+                          <button class="btn-save-step" onclick="saveStep('{sid}','{step_id}')">保存</button>
+                          <button class="btn-cancel-step" onclick="cancelEdit('{step_id}')">キャンセル</button>
+                        </div>
+                      </div>"""
                     steps_html += f"""<div class="step-item" data-step-id="{step_id}" data-scenario-id="{sid}">
                       <div class="step-item-header">
                         <span class="step-badge">STEP {st.get('stepOrder', '')}</span>
@@ -914,13 +922,7 @@ async def get_dashboard(slug: str, token: str):
                         {edit_btn}
                       </div>
                       <div class="step-content" id="step-content-{step_id}">{content_html}</div>
-                      <div class="step-editor" id="step-editor-{step_id}" style="display:none;">
-                        <textarea class="step-textarea" id="step-ta-{step_id}">{escaped}</textarea>
-                        <div class="step-editor-actions">
-                          <button class="btn-save-step" onclick="saveStep('{sid}','{step_id}')">保存</button>
-                          <button class="btn-cancel-step" onclick="cancelEdit('{step_id}')">キャンセル</button>
-                        </div>
-                      </div>
+                      {editor_html}
                     </div>"""
                 trigger = s.get("triggerType", "")
                 trigger_label = {"friend_add": "友だち追加時", "tag_added": "タグ付与時"}.get(trigger, trigger)
