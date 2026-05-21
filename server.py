@@ -953,10 +953,19 @@ async def get_dashboard(slug: str, token: str):
                 )
                 if r.is_success:
                     reminder_id = r.json()["data"]["id"]
-                    for offset, msg in [
-                        (-4320, f"【{shop_name_for_remind}】3日後のご予約をお忘れなく！お待ちしております。"),
-                        (0,     f"【{shop_name_for_remind}】本日のご予約をお待ちしています！どうぞよろしくお願いします。"),
-                    ]:
+                    _msg_3days = (
+                        f"{{{{name}}}}さん\n"
+                        f"3日後（{{{{next_appointment}}}}）がご来院の日となります。\n\n"
+                        f"以下に予約内容の詳細をお送りいたしますので、改めてご確認ください。\n\n"
+                        f"お気をつけてご来院くださいませ。"
+                    )
+                    _msg_today = (
+                        f"{{{{name}}}}さん\n"
+                        f"本日（{{{{next_appointment}}}}）がご来院の日となります。\n\n"
+                        f"以下に予約内容の詳細をお送りいたしますので、改めてご確認ください。\n\n"
+                        f"お気をつけてご来院くださいませ。"
+                    )
+                    for offset, msg in [(-4320, _msg_3days), (0, _msg_today)]:
                         httpx.post(f"{harness_url_val}/api/reminders/{reminder_id}/steps", headers=headers,
                                    json={"offsetMinutes": offset, "messageType": "text", "messageContent": msg}, timeout=10)
                     data["_reminder_id"] = reminder_id
