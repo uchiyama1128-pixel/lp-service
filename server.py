@@ -1178,10 +1178,22 @@ async def set_appointment(slug: str, friend_id: str, token: str, request: Reques
         )
         if r.is_success:
             reminder_id = r.json()["data"]["id"]
-            # ステップ追加: 3日前・当日（{{next_appointment}}で日時を自動挿入）
+            # ステップ追加: 3日前・当日（{{name}}・{{next_appointment}}で自動挿入）
+            msg_3days = (
+                f"{{{{name}}}}さん\n"
+                f"3日後（{{{{next_appointment}}}}）がご来院の日となります。\n\n"
+                f"以下に予約内容の詳細をお送りいたしますので、改めてご確認ください。\n\n"
+                f"お気をつけてご来院くださいませ。"
+            )
+            msg_today = (
+                f"{{{{name}}}}さん\n"
+                f"本日（{{{{next_appointment}}}}）がご来院の日となります。\n\n"
+                f"以下に予約内容の詳細をお送りいたしますので、改めてご確認ください。\n\n"
+                f"お気をつけてご来院くださいませ。"
+            )
             for offset, msg in [
-                (-4320, f"【{shop_name}】3日後（{{{{next_appointment}}}}）のご予約をお忘れなく！お待ちしております。"),
-                (0,     f"【{shop_name}】本日（{{{{next_appointment}}}}）のご予約をお待ちしています！どうぞよろしくお願いします。"),
+                (-4320, msg_3days),
+                (0,     msg_today),
             ]:
                 httpx.post(
                     f"{harness_url}/api/reminders/{reminder_id}/steps",
