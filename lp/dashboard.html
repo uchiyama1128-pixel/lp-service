@@ -161,11 +161,11 @@
       border-radius: 0 6px 6px 0;
     }
     .step-item:last-child { margin-bottom: 0; }
+    .step-item-header { display: flex; align-items: center; gap: 8px; }
     .step-badge {
       font-size: 11px;
       font-weight: 700;
       color: #2C4A7C;
-      margin-right: 8px;
     }
     .step-timing {
       font-size: 11px;
@@ -174,12 +174,58 @@
       padding: 2px 8px;
       border-radius: 4px;
     }
+    .step-edit-btn {
+      margin-left: auto;
+      font-size: 11px;
+      padding: 2px 10px;
+      border: 1px solid #2C4A7C;
+      background: #fff;
+      color: #2C4A7C;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .step-edit-btn:hover { background: #eef2ff; }
     .step-content {
       margin-top: 8px;
       font-size: 13px;
       color: #333;
       line-height: 1.8;
     }
+    .step-editor { margin-top: 8px; }
+    .step-textarea {
+      width: 100%; min-height: 100px; padding: 10px; border: 1.5px solid #2C4A7C;
+      border-radius: 6px; font-size: 13px; font-family: inherit; resize: vertical;
+      line-height: 1.7; box-sizing: border-box;
+    }
+    .step-editor-actions { display: flex; gap: 8px; margin-top: 6px; }
+    .btn-save-step {
+      padding: 6px 16px; background: #2C4A7C; color: #fff;
+      border: none; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer;
+    }
+    .btn-save-step:hover { background: #1e3560; }
+    .btn-cancel-step {
+      padding: 6px 12px; background: #f0f0f0; color: #555;
+      border: none; border-radius: 6px; font-size: 12px; cursor: pointer;
+    }
+
+    /* 次回予約 */
+    .appt-row { display: flex; align-items: center; gap: 10px; margin-top: 6px; flex-wrap: wrap; }
+    .appt-input {
+      flex: 1; min-width: 140px; padding: 8px 10px; border: 1.5px solid #dce5f5;
+      border-radius: 6px; font-size: 14px; font-family: inherit;
+    }
+    .appt-input:focus { outline: none; border-color: #2C4A7C; }
+    .btn-appt-save {
+      padding: 8px 18px; background: #2C4A7C; color: #fff;
+      border: none; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;
+    }
+    .btn-appt-save:hover { background: #1e3560; }
+    .btn-appt-clear {
+      padding: 8px 12px; background: #f5f5f5; color: #888;
+      border: none; border-radius: 6px; font-size: 12px; cursor: pointer;
+    }
+    .appt-note { font-size: 11px; color: #888; margin-top: 4px; }
   </style>
 </head>
 <body>
@@ -239,6 +285,7 @@
                 <th></th>
                 <th>名前</th>
                 <th>来院回数</th>
+                <th>次回予約</th>
                 <th>問診票</th>
                 <th>感想</th>
                 <th>登録日</th>
@@ -277,12 +324,19 @@
     const SLUG  = location.pathname.split('/')[1];
     const TOKEN = location.pathname.split('/')[3];
     let _cachedData = null;
+    let _currentFriendId = null;
 
+    function esc(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // ── ドロワー開閉 ──────────────────────────────────────
     function openDrawer(friendId) {
       const json = _cachedData;
       const f = json.friends.find(x => x.id === friendId);
       const subs = (json.submissions || {})[friendId] || {};
       if (!f) return;
+      _currentFriendId = friendId;
 
       document.getElementById('drawerName').textContent = f.display_name;
       document.getElementById('drawerSub').textContent = `来院 ${f.checkin_count || 0}回`;
@@ -292,6 +346,18 @@
         : `<div class="drawer-header-placeholder">👤</div>`;
 
       let html = '';
+
+      // 次回予約
+      const apptVal = f.next_appointment || '';
+      html += `<div class="drawer-section">
+        <div class="drawer-section-title">次回予約</div>
+        <div class="appt-row">
+          <input type="date" class="appt-input" id="apptInput" value="${esc(apptVal)}">
+          <button class="btn-appt-save" onclick="saveAppointment()">保存</button>
+          ${apptVal ? `<button class="btn-appt-clear" onclick="clearAppointment()">削除</button>` : ''}
+        </div>
+        <p class="appt-note">保存すると3日前・当日にLINEでリマインドが自動送信されます</p>
+      </div>`;
 
       // 問診票
       html += `<div class="drawer-section"><div class="drawer-section-title">問診票</div>`;
@@ -316,7 +382,7 @@
       html += `<div class="drawer-section"><div class="drawer-section-title">感想フォーム</div>`;
       if (subs.review && subs.review.data) {
         const stars = Number(subs.review.data.stars || 0);
-        if (stars) html += `<div class="form-answer"><dt>評価</dt><dd class="stars">${'★'.repeat(stars)}${'☆'.repeat(5 - stars)} (${stars}/5)</dd></div>`;
+        if (stars) html += `<dl class="form-answer"><dt>評価</dt><dd class="stars">${'★'.repeat(stars)}${'☆'.repeat(5-stars)} (${stars}/5)</dd></dl>`;
         if (subs.review.data.comment) html += `<dl class="form-answer"><dt>ご感想</dt><dd>${esc(String(subs.review.data.comment))}</dd></dl>`;
         html += `<p style="font-size:11px;color:#aaa;margin-top:4px;">${subs.review.created_at.slice(0,16).replace('T',' ')}</p>`;
       } else {
@@ -332,10 +398,130 @@
     function closeDrawer() {
       document.getElementById('drawerOverlay').classList.remove('open');
       document.getElementById('drawer').classList.remove('open');
+      _currentFriendId = null;
     }
 
-    function esc(s) {
-      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    // ── 次回予約 ──────────────────────────────────────────
+    async function saveAppointment() {
+      const date = document.getElementById('apptInput')?.value || '';
+      if (!date) return;
+      await _postAppointment(date);
+    }
+
+    async function clearAppointment() {
+      if (!confirm('予約日を削除してリマインドをキャンセルしますか？')) return;
+      await _postAppointment('');
+    }
+
+    async function _postAppointment(date) {
+      if (!_currentFriendId) return;
+      const btn = document.querySelector('.btn-appt-save');
+      if (btn) { btn.disabled = true; btn.textContent = '保存中...'; }
+      try {
+        const res = await fetch(`/${SLUG}/appointment/${_currentFriendId}/${TOKEN}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ appointment_date: date }),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.detail || '保存に失敗しました');
+
+        // キャッシュ更新
+        const f = _cachedData.friends.find(x => x.id === _currentFriendId);
+        if (f) f.next_appointment = date;
+
+        // テーブルのバッジ更新（次回予約列がある場合）
+        _refreshTable();
+
+        alert(date ? `次回予約日を ${date} に設定しました。3日前と当日にリマインドを送信します。` : '予約日を削除しました');
+        closeDrawer();
+      } catch (e) {
+        alert(e.message || '保存に失敗しました');
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '保存'; }
+      }
+    }
+
+    // ── シナリオステップ編集 ─────────────────────────────
+    function editStep(btn) {
+      const scenarioId = btn.dataset.scenarioId;
+      const stepId = btn.dataset.stepId;
+      const content = btn.dataset.content;
+      document.getElementById(`step-content-${stepId}`).style.display = 'none';
+      const editor = document.getElementById(`step-editor-${stepId}`);
+      editor.style.display = 'block';
+      const ta = document.getElementById(`step-ta-${stepId}`);
+      if (ta) ta.value = content;
+      btn.style.display = 'none';
+    }
+
+    function cancelEdit(stepId) {
+      document.getElementById(`step-content-${stepId}`).style.display = 'block';
+      document.getElementById(`step-editor-${stepId}`).style.display = 'none';
+      const item = document.querySelector(`[data-step-id="${stepId}"] .step-edit-btn`);
+      if (item) item.style.display = 'inline-block';
+    }
+
+    async function saveStep(scenarioId, stepId) {
+      const ta = document.getElementById(`step-ta-${stepId}`);
+      const content = ta ? ta.value.trim() : '';
+      if (!content) return;
+      const btn = document.querySelector(`#step-editor-${stepId} .btn-save-step`);
+      if (btn) { btn.disabled = true; btn.textContent = '保存中...'; }
+      try {
+        const res = await fetch(`/${SLUG}/scenario-step/${TOKEN}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scenario_id: scenarioId, step_id: stepId, message_content: content }),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.detail || '保存に失敗しました');
+
+        // 表示を更新
+        const contentEl = document.getElementById(`step-content-${stepId}`);
+        contentEl.innerHTML = content.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+        // data-content属性も更新
+        const editBtn = document.querySelector(`[data-step-id="${stepId}"].step-edit-btn`);
+        if (editBtn) editBtn.dataset.content = content;
+
+        cancelEdit(stepId);
+        alert('保存しました');
+      } catch (e) {
+        alert(e.message || '保存に失敗しました');
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '保存'; }
+      }
+    }
+
+    // ── 顧客テーブル ──────────────────────────────────────
+    function _refreshTable() {
+      if (!_cachedData) return;
+      const _customers = _cachedData.friends || [];
+      const subs = _cachedData.submissions || {};
+      const tbody = document.getElementById('customerTbody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+      for (const f of _customers) {
+        const s = subs[f.id] || {};
+        const hasShinsatsu = !!s.shinsatsu;
+        const hasReview = !!s.review;
+        const date = f.created_at ? f.created_at.slice(0, 10) : '-';
+        const appt = f.next_appointment ? `<span class="badge-has">${f.next_appointment}</span>` : `<span class="badge-none">未設定</span>`;
+        const avatar = f.picture_url
+          ? `<img class="customer-avatar" src="${f.picture_url}" alt="">`
+          : `<span class="customer-avatar-placeholder">👤</span>`;
+        tbody.insertAdjacentHTML('beforeend', `
+          <tr onclick="openDrawer('${esc(f.id)}')">
+            <td>${avatar}</td>
+            <td style="font-weight:600">${esc(f.display_name)}</td>
+            <td><span class="badge-count">${f.checkin_count || 0}回</span></td>
+            <td>${appt}</td>
+            <td>${hasShinsatsu ? '<span class="badge-has">あり</span>' : '<span class="badge-none">なし</span>'}</td>
+            <td>${hasReview ? '<span class="badge-has">あり</span>' : '<span class="badge-none">なし</span>'}</td>
+            <td style="color:#888;font-size:12px">${date}</td>
+          </tr>
+        `);
+      }
     }
 
     async function loadCustomers() {
@@ -345,37 +531,13 @@
         const json = await res.json();
         _cachedData = json;
 
-        const _customers = json.friends || [];
-        const subs = json.submissions || {};
-
         document.getElementById('customerLoading').style.display = 'none';
-        if (_customers.length === 0) {
+        if ((json.friends || []).length === 0) {
           document.getElementById('customerEmpty').style.display = 'block';
           return;
         }
-
-        const tbody = document.getElementById('customerTbody');
-        tbody.innerHTML = '';
-        for (const f of _customers) {
-          const s = subs[f.id] || {};
-          const hasShinsatsu = !!s.shinsatsu;
-          const hasReview = !!s.review;
-          const date = f.created_at ? f.created_at.slice(0, 10) : '-';
-          const avatar = f.picture_url
-            ? `<img class="customer-avatar" src="${f.picture_url}" alt="">`
-            : `<span class="customer-avatar-placeholder">👤</span>`;
-          tbody.insertAdjacentHTML('beforeend', `
-            <tr onclick="openDrawer('${esc(f.id)}')">
-              <td>${avatar}</td>
-              <td style="font-weight:600">${esc(f.display_name)}</td>
-              <td><span class="badge-count">${f.checkin_count || 0}回</span></td>
-              <td>${hasShinsatsu ? '<span class="badge-has">あり</span>' : '<span class="badge-none">なし</span>'}</td>
-              <td>${hasReview ? '<span class="badge-has">あり</span>' : '<span class="badge-none">なし</span>'}</td>
-              <td style="color:#888;font-size:12px">${date}</td>
-            </tr>
-          `);
-        }
         document.getElementById('customerTableWrap').style.display = 'block';
+        _refreshTable();
       } catch (e) {
         document.getElementById('customerLoading').style.display = 'none';
         const el = document.getElementById('customerError');

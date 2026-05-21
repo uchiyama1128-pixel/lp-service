@@ -898,14 +898,29 @@ async def get_dashboard(slug: str, token: str):
                         delay_label = f"+{delay // 1440}日後{hour_str}"
                     msg_type = st.get("messageType", "text")
                     raw_content = st.get("messageContent", "")
+                    step_id = st.get("id", "")
                     if msg_type == "flex":
                         content_html = _render_flex_preview(raw_content)
+                        edit_btn = ""
                     else:
+                        import html as _html
+                        escaped = _html.escape(raw_content)
                         content_html = raw_content.replace("\n", "<br>")
-                    steps_html += f"""<div class="step-item">
-                      <span class="step-badge">STEP {st.get('stepOrder', '')}</span>
-                      <span class="step-timing">{delay_label}</span>
-                      <div class="step-content">{content_html}</div>
+                        edit_btn = f"""<button class="step-edit-btn" onclick="editStep(this)" data-scenario-id="{sid}" data-step-id="{step_id}" data-content="{escaped}">編集</button>"""
+                    steps_html += f"""<div class="step-item" data-step-id="{step_id}" data-scenario-id="{sid}">
+                      <div class="step-item-header">
+                        <span class="step-badge">STEP {st.get('stepOrder', '')}</span>
+                        <span class="step-timing">{delay_label}</span>
+                        {edit_btn}
+                      </div>
+                      <div class="step-content" id="step-content-{step_id}">{content_html}</div>
+                      <div class="step-editor" id="step-editor-{step_id}" style="display:none;">
+                        <textarea class="step-textarea" id="step-ta-{step_id}">{escaped}</textarea>
+                        <div class="step-editor-actions">
+                          <button class="btn-save-step" onclick="saveStep('{sid}','{step_id}')">保存</button>
+                          <button class="btn-cancel-step" onclick="cancelEdit('{step_id}')">キャンセル</button>
+                        </div>
+                      </div>
                     </div>"""
                 trigger = s.get("triggerType", "")
                 trigger_label = {"friend_add": "友だち追加時", "tag_added": "タグ付与時"}.get(trigger, trigger)
@@ -982,12 +997,16 @@ async def get_customers(slug: str, token: str):
             # line_login_subが設定されているレコードはMessaging API userIdが正しいレコード
             # line_user_idが他レコードのline_login_subと一致する場合は重複（プロバイダーミスマッチで誤作成）→除外
             login_subs = {f.get("lineLoginSub") or f.get("line_login_sub") for f in items if f.get("lineLoginSub") or f.get("line_login_sub")}
+            def _meta(f):
+                raw = f.get("metadata") or "{}"
+                return json.loads(raw) if isinstance(raw, str) else (raw or {})
             friends = [
                 {
                     "id": f.get("id"),
                     "display_name": f.get("displayName") or f.get("display_name") or "不明",
                     "picture_url": f.get("pictureUrl") or f.get("picture_url") or "",
-                    "checkin_count": (json.loads(f.get("metadata") or "{}") if isinstance(f.get("metadata"), str) else (f.get("metadata") or {})).get("checkin_count", 0),
+                    "checkin_count": _meta(f).get("checkin_count", 0),
+                    "next_appointment": _meta(f).get("next_appointment", ""),
                     "created_at": f.get("createdAt") or f.get("created_at") or "",
                 }
                 for f in items
@@ -1022,6 +1041,120 @@ async def get_customers(slug: str, token: str):
             pass
 
     return {"friends": friends, "submissions": submissions}
+
+
+@app.post("/{slug}/appointment/{friend_id}/{token}")
+async def set_appointment(slug: str, friend_id: str, token: str, request: Request):
+    """次回予約日の設定・更新・削除"""
+    data = get_hearing(slug)
+    if data is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    if data.get("_dashboard_token") != token:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    body = await request.json()
+    appointment_date = body.get("appointment_date", "").strip()  # "YYYY-MM-DD" or ""
+
+    harness_url = os.getenv("LINE_HARNESS_API_URL", "https://line-crm-worker.uchiyama1128.workers.dev")
+    harness_key = os.getenv("LINE_HARNESS_API_KEY", "")
+    if not harness_key:
+        raise HTTPException(status_code=500, detail="API key not configured")
+    headers = {"Authorization": f"Bearer {harness_key}", "Content-Type": "application/json"}
+    shop_name = data.get("shop_name", "")
+
+    # 1. friendのmetadataにnext_appointmentを保存（表示用）
+    httpx.put(
+        f"{harness_url}/api/friends/{friend_id}/metadata",
+        headers=headers,
+        json={"next_appointment": appointment_date},
+        timeout=10,
+    )
+
+    # 2. 既存リマインダー登録をキャンセル
+    try:
+        remind_res = httpx.get(f"{harness_url}/api/friends/{friend_id}/reminders", headers=headers, timeout=10)
+        if remind_res.is_success:
+            for fr in remind_res.json().get("data", []):
+                if fr.get("status") == "active":
+                    httpx.delete(f"{harness_url}/api/friend-reminders/{fr['id']}", headers=headers, timeout=10)
+    except Exception:
+        pass
+
+    if not appointment_date:
+        return {"success": True}
+
+    # 3. リマインダーテンプレートを取得または作成
+    reminder_id = data.get("_reminder_id", "")
+    if not reminder_id:
+        r = httpx.post(
+            f"{harness_url}/api/reminders",
+            headers=headers,
+            json={"name": f"次回予約リマインド【{shop_name}】", "lineAccountId": data.get("line_account_id", "")},
+            timeout=10,
+        )
+        if r.is_success:
+            reminder_id = r.json()["data"]["id"]
+            # ステップ追加: 3日前・当日
+            for offset, msg in [
+                (-4320, f"【{shop_name}】3日後のご予約をお忘れなく！お待ちしております。"),
+                (0,     f"【{shop_name}】本日のご予約をお待ちしています！どうぞよろしくお願いします。"),
+            ]:
+                httpx.post(
+                    f"{harness_url}/api/reminders/{reminder_id}/steps",
+                    headers=headers,
+                    json={"offsetMinutes": offset, "messageType": "text", "messageContent": msg},
+                    timeout=10,
+                )
+            data["_reminder_id"] = reminder_id
+            save_hearing(slug, data)
+
+    # 4. 新しいリマインダー登録
+    if reminder_id:
+        httpx.post(
+            f"{harness_url}/api/reminders/{reminder_id}/enroll/{friend_id}",
+            headers=headers,
+            json={"targetDate": appointment_date},
+            timeout=10,
+        )
+
+    return {"success": True, "appointment_date": appointment_date}
+
+
+@app.patch("/{slug}/scenario-step/{token}")
+async def update_scenario_step(slug: str, token: str, request: Request):
+    """シナリオステップの文面更新プロキシ"""
+    data = get_hearing(slug)
+    if data is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    if data.get("_dashboard_token") != token:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    body = await request.json()
+    scenario_id = body.get("scenario_id", "")
+    step_id = body.get("step_id", "")
+    message_content = body.get("message_content", "")
+    if not scenario_id or not step_id or not message_content:
+        raise HTTPException(status_code=400, detail="scenario_id, step_id, message_content are required")
+
+    # このslugのシナリオか確認
+    allowed_ids = data.get("_scenario_ids", [])
+    if scenario_id not in allowed_ids:
+        raise HTTPException(status_code=403, detail="Scenario not found for this account")
+
+    harness_url = os.getenv("LINE_HARNESS_API_URL", "https://line-crm-worker.uchiyama1128.workers.dev")
+    harness_key = os.getenv("LINE_HARNESS_API_KEY", "")
+    headers = {"Authorization": f"Bearer {harness_key}", "Content-Type": "application/json"}
+
+    res = httpx.put(
+        f"{harness_url}/api/scenarios/{scenario_id}/steps/{step_id}",
+        headers=headers,
+        json={"messageContent": message_content},
+        timeout=10,
+    )
+    if not res.is_success:
+        raise HTTPException(status_code=500, detail=f"更新失敗: {res.text}")
+
+    return {"success": True}
 
 
 @app.delete("/admin/clear-all-data")
