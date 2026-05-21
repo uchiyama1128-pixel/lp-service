@@ -789,6 +789,11 @@ async def post_line_setup(slug: str, request: Request):
                 data["_checkin_qr_url"]   = scenario_result["checkin_qr_url"]
                 data["_checkin_route_id"] = scenario_result["checkin_route_id"]
                 data["_scenario_ids"]     = list(scenario_result["scenario_ids"].values())
+                # チェックインシナリオ（C・D）のIDを別途保持（予約設定時に停止するため）
+                data["_checkin_scenario_ids"] = [
+                    v for k, v in scenario_result["scenario_ids"].items()
+                    if "シナリオC" in k or "シナリオD" in k
+                ]
             except Exception as e:
                 scenario_error = str(e)
 
@@ -1163,7 +1168,36 @@ async def set_appointment(slug: str, friend_id: str, token: str, request: Reques
         timeout=10,
     )
 
-    # 2. 既存リマインダー登録をキャンセル
+    # 2. チェックインシナリオ（C・D）を停止 — 予約済みなので再来院促進は不要
+    # _checkin_scenario_ids 未設定の場合は _scenario_ids からC・Dを名前で特定して自動補完
+    checkin_scenario_ids = data.get("_checkin_scenario_ids", [])
+    if not checkin_scenario_ids:
+        all_ids = data.get("_scenario_ids", [])
+        if all_ids:
+            try:
+                resolved = []
+                for sid in all_ids:
+                    r = httpx.get(f"{harness_url}/api/scenarios/{sid}", headers=headers, timeout=5)
+                    if r.is_success:
+                        name = r.json().get("data", {}).get("name", "")
+                        if "シナリオC" in name or "シナリオD" in name:
+                            resolved.append(sid)
+                if resolved:
+                    checkin_scenario_ids = resolved
+                    data["_checkin_scenario_ids"] = resolved
+                    save_hearing(slug, data)
+            except Exception:
+                pass
+    for sid in checkin_scenario_ids:
+        try:
+            httpx.delete(
+                f"{harness_url}/api/scenarios/{sid}/enroll/{friend_id}",
+                headers=headers, timeout=10,
+            )
+        except Exception:
+            pass
+
+    # 3. 既存リマインダー登録をキャンセル
     try:
         remind_res = httpx.get(f"{harness_url}/api/friends/{friend_id}/reminders", headers=headers, timeout=10)
         if remind_res.is_success:
@@ -1176,7 +1210,7 @@ async def set_appointment(slug: str, friend_id: str, token: str, request: Reques
     if not appointment_date:
         return {"success": True, "next_appointment": ""}
 
-    # 3. リマインダーテンプレートを取得または作成
+    # 4. リマインダーテンプレートを取得または作成
     reminder_id = data.get("_reminder_id", "")
     if not reminder_id:
         r = httpx.post(
@@ -1213,7 +1247,7 @@ async def set_appointment(slug: str, friend_id: str, token: str, request: Reques
             data["_reminder_id"] = reminder_id
             save_hearing(slug, data)
 
-    # 4. 新しいリマインダー登録（targetDateは日付のみ）
+    # 5. 新しいリマインダー登録（targetDateは日付のみ）
     if reminder_id:
         httpx.post(
             f"{harness_url}/api/reminders/{reminder_id}/enroll/{friend_id}",
