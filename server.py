@@ -935,6 +935,73 @@ async def get_dashboard(slug: str, token: str):
     elif not scenario_ids:
         scenarios_html = "<p style='color:#888;font-size:13px;'>LINE設定完了後にシナリオが表示されます</p>"
 
+    # ── リマインダーシナリオ（次回予約）の表示 ────────────────────────
+    import html as _html
+    reminder_id = data.get("_reminder_id", "")
+    shop_name_for_remind = data.get("shop_name", "")
+    reminder_html = ""
+    if harness_key_val:
+        try:
+            # リマインダーが未作成なら作成して保存
+            if not reminder_id:
+                r = httpx.post(
+                    f"{harness_url_val}/api/reminders",
+                    headers=headers,
+                    json={"name": f"シナリオE｜次回予約リマインド【{shop_name_for_remind}】",
+                          "lineAccountId": data.get("line_account_id", "")},
+                    timeout=10,
+                )
+                if r.is_success:
+                    reminder_id = r.json()["data"]["id"]
+                    for offset, msg in [
+                        (-4320, f"【{shop_name_for_remind}】3日後のご予約をお忘れなく！お待ちしております。"),
+                        (0,     f"【{shop_name_for_remind}】本日のご予約をお待ちしています！どうぞよろしくお願いします。"),
+                    ]:
+                        httpx.post(f"{harness_url_val}/api/reminders/{reminder_id}/steps", headers=headers,
+                                   json={"offsetMinutes": offset, "messageType": "text", "messageContent": msg}, timeout=10)
+                    data["_reminder_id"] = reminder_id
+                    save_hearing(slug, data)
+
+            if reminder_id:
+                rr = httpx.get(f"{harness_url_val}/api/reminders/{reminder_id}", headers=headers, timeout=10)
+                if rr.is_success:
+                    rd = rr.json().get("data", {})
+                    rsteps_html = ""
+                    for rst in sorted(rd.get("steps", []), key=lambda x: x.get("offsetMinutes", 0)):
+                        offset_min = rst.get("offsetMinutes", 0)
+                        if offset_min < 0:
+                            days = abs(offset_min) // 1440
+                            timing_label = f"{days}日前"
+                        elif offset_min == 0:
+                            timing_label = "当日"
+                        else:
+                            timing_label = f"+{offset_min // 1440}日後"
+                        rst_id = rst.get("id", "")
+                        raw_c = rst.get("messageContent", "")
+                        esc_c = _html.escape(raw_c)
+                        rsteps_html += f"""<div class="step-item" data-step-id="{rst_id}">
+                          <div class="step-item-header">
+                            <span class="step-badge">予約{timing_label}</span>
+                            <button class="step-edit-btn" onclick="editReminderStep(this)" data-reminder-id="{reminder_id}" data-step-id="{rst_id}" data-content="{esc_c}">編集</button>
+                          </div>
+                          <div class="step-content" id="step-content-{rst_id}">{raw_c.replace(chr(10), '<br>')}</div>
+                          <div class="step-editor" id="step-editor-{rst_id}" style="display:none;">
+                            <textarea class="step-textarea" id="step-ta-{rst_id}">{esc_c}</textarea>
+                            <div class="step-editor-actions">
+                              <button class="btn-save-step" onclick="saveReminderStep('{reminder_id}','{rst_id}')">保存</button>
+                              <button class="btn-cancel-step" onclick="cancelEdit('{rst_id}')">キャンセル</button>
+                            </div>
+                          </div>
+                        </div>"""
+                    reminder_html = f"""<details class="scenario-block reminder-block">
+                      <summary>シナリオE｜次回予約リマインド【{shop_name_for_remind}】 <span class="trigger-badge reminder-badge">予約日ベース</span></summary>
+                      <p style="font-size:12px;color:#888;padding:10px 16px 0;">顧客の次回予約日を入力すると、設定した日数前に自動でLINEが届きます</p>
+                      <div class="steps-wrap">{rsteps_html}</div>
+                    </details>"""
+        except Exception:
+            pass
+    scenarios_html += reminder_html
+
     # QRコードURL
     lp_qr_url      = data.get("_qr_url", "")
     checkin_qr_url = data.get("_checkin_qr_url", "")
@@ -1153,6 +1220,52 @@ async def update_scenario_step(slug: str, token: str, request: Request):
         json={"messageContent": message_content},
         timeout=10,
     )
+    if not res.is_success:
+        raise HTTPException(status_code=500, detail=f"更新失敗: {res.text}")
+
+    return {"success": True}
+
+
+@app.patch("/{slug}/reminder-step/{token}")
+async def update_reminder_step(slug: str, token: str, request: Request):
+    """リマインダーステップの文面更新プロキシ"""
+    data = get_hearing(slug)
+    if data is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    if data.get("_dashboard_token") != token:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    body = await request.json()
+    reminder_id = body.get("reminder_id", "")
+    step_id = body.get("step_id", "")
+    message_content = body.get("message_content", "")
+    if not reminder_id or not step_id or not message_content:
+        raise HTTPException(status_code=400, detail="reminder_id, step_id, message_content are required")
+
+    if data.get("_reminder_id") != reminder_id:
+        raise HTTPException(status_code=403, detail="Reminder not found for this account")
+
+    harness_url = os.getenv("LINE_HARNESS_API_URL", "https://line-crm-worker.uchiyama1128.workers.dev")
+    harness_key = os.getenv("LINE_HARNESS_API_KEY", "")
+    headers = {"Authorization": f"Bearer {harness_key}", "Content-Type": "application/json"}
+
+    # リマインダーステップはDELETE→POSTで更新（PUTエンドポイントがないため）
+    # まず既存ステップのoffsetMinutesを取得してから再作成
+    rr = httpx.get(f"{harness_url}/api/reminders/{reminder_id}", headers=headers, timeout=10)
+    if not rr.is_success:
+        raise HTTPException(status_code=500, detail="リマインダー取得失敗")
+    steps = rr.json().get("data", {}).get("steps", [])
+    target = next((s for s in steps if s.get("id") == step_id), None)
+    if not target:
+        raise HTTPException(status_code=404, detail="Step not found")
+
+    offset = target.get("offsetMinutes", 0)
+    msg_type = target.get("messageType", "text")
+
+    # 削除して再作成
+    httpx.delete(f"{harness_url}/api/reminders/{reminder_id}/steps/{step_id}", headers=headers, timeout=10)
+    res = httpx.post(f"{harness_url}/api/reminders/{reminder_id}/steps", headers=headers,
+                     json={"offsetMinutes": offset, "messageType": msg_type, "messageContent": message_content}, timeout=10)
     if not res.is_success:
         raise HTTPException(status_code=500, detail=f"更新失敗: {res.text}")
 

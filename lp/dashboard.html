@@ -226,6 +226,10 @@
       border: none; border-radius: 6px; font-size: 12px; cursor: pointer;
     }
     .appt-note { font-size: 11px; color: #888; margin-top: 4px; }
+
+    /* リマインダーシナリオ */
+    .reminder-block summary { background: #f5f0ff; }
+    .reminder-badge { background: #ede0ff; color: #6d28d9; }
   </style>
 </head>
 <body>
@@ -443,6 +447,42 @@
     }
 
     // ── シナリオステップ編集 ─────────────────────────────
+    // ── リマインダーステップ編集 ─────────────────────────
+    function editReminderStep(btn) {
+      const stepId = btn.dataset.stepId;
+      const content = btn.dataset.content;
+      document.getElementById(`step-content-${stepId}`).style.display = 'none';
+      document.getElementById(`step-editor-${stepId}`).style.display = 'block';
+      const ta = document.getElementById(`step-ta-${stepId}`);
+      if (ta) ta.value = content;
+      btn.style.display = 'none';
+    }
+
+    async function saveReminderStep(reminderId, stepId) {
+      const ta = document.getElementById(`step-ta-${stepId}`);
+      const content = ta ? ta.value.trim() : '';
+      if (!content) return;
+      const btn = document.querySelector(`#step-editor-${stepId} .btn-save-step`);
+      if (btn) { btn.disabled = true; btn.textContent = '保存中...'; }
+      try {
+        const res = await fetch(`/${SLUG}/reminder-step/${TOKEN}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reminder_id: reminderId, step_id: stepId, message_content: content }),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.detail || '保存に失敗しました');
+        const contentEl = document.getElementById(`step-content-${stepId}`);
+        contentEl.innerHTML = content.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+        cancelEdit(stepId);
+        alert('保存しました');
+      } catch (e) {
+        alert(e.message || '保存に失敗しました');
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '保存'; }
+      }
+    }
+
     function editStep(btn) {
       const scenarioId = btn.dataset.scenarioId;
       const stepId = btn.dataset.stepId;
