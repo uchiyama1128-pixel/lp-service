@@ -17,10 +17,11 @@
     label { display: block; font-size: 13px; font-weight: 600; color: #444; margin-bottom: 6px; }
     label .req { color: #e53935; margin-left: 4px; }
     label .opt { font-weight: 400; color: #888; font-size: 12px; margin-left: 4px; }
-    input[type="text"], input[type="url"], input[type="tel"], input[type="number"], select {
+    input[type="text"], input[type="url"], input[type="tel"], input[type="number"], select, textarea {
       width: 100%; padding: 10px 14px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 14px; transition: border-color 0.2s;
     }
-    input:focus, select:focus { outline: none; border-color: #00897B; }
+    textarea { resize: vertical; line-height: 1.6; font-family: inherit; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #00897B; }
     .hint { font-size: 12px; color: #888; margin-top: 4px; }
     .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     @media (max-width: 500px) { .row2 { grid-template-columns: 1fr; } }
@@ -78,6 +79,27 @@
         <label>Web予約URL <span class="req">必須</span></label>
         <input type="url" id="booking_url" placeholder="https://example.com/booking/" required>
         <p class="hint">未入力の場合はLPのURLが使用されます</p>
+      </div>
+    </div>
+
+    <!-- LINEシナリオ用コンテンツ -->
+    <div class="section">
+      <div class="section-title">LINEシナリオ用コンテンツ</div>
+      <p class="hint" style="margin-bottom:14px;">登録後のLINEメッセージに使用します。空欄でも自動生成されますが、入力するとより具体的な内容になります。</p>
+      <div class="field">
+        <label>先生の想い・この仕事を選んだ理由 <span class="req">*</span></label>
+        <textarea id="owner_message" rows="4" placeholder="例：スポーツトレーナー時代に慢性痛で悩む選手を多く見てきたことから、根本から改善できる施術を学びました。患者様一人ひとりのお体と向き合い、再発しない体づくりをサポートしています。"></textarea>
+        <p class="hint">登録翌日の「先生の自己紹介」メッセージに使用します（2〜3文が理想）</p>
+      </div>
+      <div class="field">
+        <label>一番力を入れている施術・症状 <span class="req">*</span></label>
+        <input type="text" id="main_focus" placeholder="例：慢性的な肩こり・腰痛の根本改善　／　産後骨盤矯正　／　スポーツ障害">
+        <p class="hint">専門特化していなくてもOK。得意分野・メインターゲットの症状を入力してください</p>
+      </div>
+      <div class="field">
+        <label>患者さんがよくやりがちな間違ったケア・誤解 <span class="req">*</span></label>
+        <textarea id="wrong_approach" rows="3" placeholder="例：痛い場所だけをマッサージしても、骨盤の歪みが根本原因なら一時的には楽になっても繰り返してしまう"></textarea>
+        <p class="hint">「なぜ他の方法では治らないのか」という専門性のアピールに使用します</p>
       </div>
     </div>
 
@@ -150,6 +172,13 @@
       const shop_name = document.getElementById('shop_name').value.trim();
       if (!shop_name) { showError('店名・院名を入力してください'); return; }
 
+      const owner_message  = document.getElementById('owner_message').value.trim();
+      const main_focus     = document.getElementById('main_focus').value.trim();
+      const wrong_approach = document.getElementById('wrong_approach').value.trim();
+      if (!owner_message)  { showError('先生の想い・この仕事を選んだ理由を入力してください'); return; }
+      if (!main_focus)     { showError('一番力を入れている施術・症状を入力してください'); return; }
+      if (!wrong_approach) { showError('患者さんがよくやりがちな間違ったケア・誤解を入力してください'); return; }
+
       const coupon_title          = document.getElementById('coupon_title').value.trim();
       const coupon_original_price = document.getElementById('coupon_original_price').value.trim();
       const coupon_price          = document.getElementById('coupon_price').value.trim();
@@ -171,6 +200,9 @@
       const payload = {
         shop_name,
         owner_name:              document.getElementById('owner_name').value.trim(),
+        owner_message,
+        main_focus,
+        wrong_approach,
         phone:                   document.getElementById('phone').value.trim(),
         address:                 document.getElementById('address').value.trim(),
         lp_url:                  document.getElementById('lp_url').value.trim(),

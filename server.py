@@ -89,6 +89,50 @@ def _resolve_photos(photos: dict, slug: str) -> dict:
             resolved[k] = v
     return resolved
 
+# ─── owner_message 整形ヘルパー ──────────────────────────────────────
+def _polish_text(raw: str, prompt: str) -> str:
+    """テキストをClaudeで整形する汎用関数（失敗時は元テキストを返す）"""
+    if not raw:
+        return raw
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+    if not api_key:
+        return raw
+    try:
+        client = anthropic.Anthropic(api_key=api_key)
+        result = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=300,
+            messages=[{"role": "user", "content": prompt + f"\n\n元の文章：\n{raw}"}],
+        )
+        return result.content[0].text.strip()
+    except Exception:
+        return raw
+
+
+def _polish_owner_message(raw: str) -> str:
+    """院長の想いをLINEメッセージ向けに整形する"""
+    return _polish_text(raw, (
+        "以下の院長の想いを、LINEメッセージ向けに整えてください。\n\n"
+        "条件：\n"
+        "- 敬語・丁寧語で、自然な話し言葉にする\n"
+        "- 2〜3文に収める\n"
+        "- 院長本人が話している一人称の文体\n"
+        "- 整えた文章だけ出力する（前置きや説明文は不要）"
+    ))
+
+
+def _polish_wrong_approach(raw: str) -> str:
+    """よくある間違いをLINEメッセージの一節として自然な敬語に整形する"""
+    return _polish_text(raw, (
+        "以下の「よくある間違ったケア・誤解」を、LINEメッセージの一節として整えてください。\n\n"
+        "条件：\n"
+        "- 読者（患者さん）に語りかける丁寧な話し言葉\n"
+        "- 上から目線にならず、共感・気づきを促すトーン\n"
+        "- 2〜3文に収める\n"
+        "- 整えた文章だけ出力する（前置きや説明文は不要）"
+    ))
+
+
 # ─── Cloudflare D1 hearing ストア ────────────────────────────────────
 _CF_ACCOUNT_ID = os.getenv("CF_ACCOUNT_ID", "")
 _CF_D1_DB_ID   = os.getenv("CF_D1_DB_ID", "05d8fa48-a20c-465d-850f-e022493f95c2")
@@ -757,7 +801,6 @@ async def post_line_setup(slug: str, request: Request):
             try:
                 owner_name = data.get("owner_name") or data.get("doctor_name") or shop_name
                 booking_url_for_scenario = booking_url or data.get("_lp_url", "")
-                survey_url_for_scenario = data.get("survey_url", "")
                 liff_url = os.getenv("LIFF_URL", "https://liff.line.me/2009607643-QGWpmE45")
                 _coupon_obj     = data.get("coupon") or {}
                 coupon_title    = data.get("coupon_title") or _coupon_obj.get("title", "初回限定クーポン")
@@ -771,7 +814,6 @@ async def post_line_setup(slug: str, request: Request):
                     shop_name=shop_name,
                     owner_name=owner_name,
                     booking_url=booking_url_for_scenario,
-                    survey_url=survey_url_for_scenario,
                     review_url=google_review_url or "",
                     form_url=review_form_url,
                     slug=slug,
@@ -783,6 +825,10 @@ async def post_line_setup(slug: str, request: Request):
                     revisit_coupon_timing=int(revisit_coupon_timing),
                     shinsatsu_form_url=shinsatsu_form_url,
                     shinsatsu_form_id=shinsatsu_form_id,
+                    owner_message=_polish_owner_message(data.get("owner_message", "")),
+                    main_focus=data.get("main_focus", ""),
+                    wrong_approach=_polish_wrong_approach(data.get("wrong_approach", "")),
+                    lp_url=data.get("_lp_url") or data.get("lp_url", ""),
                 )
                 data["_qr_url"]           = scenario_result["qr_url"]
                 data["_entry_route_id"]   = scenario_result["entry_route_id"]

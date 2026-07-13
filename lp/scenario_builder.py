@@ -253,92 +253,97 @@ def _build_c_steps(R, shop_name, shinsatsu_form_url, _btn_form, _btn_form_r,
 
 # ─── シナリオテンプレート ─────────────────────────────────────────
 def _scenario_templates(shop_name: str, owner_name: str, booking_url: str,
-                        survey_url: str, review_url: str, form_url: str,
+                        review_url: str, form_url: str,
                         tag_lp: str, tag_checkin: str, tag_existing: str, tag_re_checkin: str,
-                        tag_survey_done: str = "アンケート回答済み",
                         coupon_name: str = "初回限定クーポン",
                         coupon_discount: str = "",
                         revisit_coupon_name: str = "次回来院クーポン",
                         revisit_coupon_discount: str = "",
                         review_coupon_tag_id: str = "",
                         revisit_coupon_timing: int = 14,
-                        shinsatsu_form_url: str = "") -> list[dict]:
-    """6本のシナリオ定義を返す"""
-    R = lambda t: _replace(t, shop_name, owner_name, booking_url, survey_url, review_url, form_url)
+                        shinsatsu_form_url: str = "",
+                        owner_message: str = "",
+                        main_focus: str = "",
+                        wrong_approach: str = "",
+                        lp_url: str = "") -> list[dict]:
+    """5本のシナリオ定義を返す（シナリオA拡張版・シナリオB廃止）"""
+    R = lambda t: _replace(t, shop_name, owner_name, booking_url, "", review_url, form_url)
 
     # クーポンflex（即時生成）
     fc  = _flex_coupon(coupon_name, coupon_discount, booking_url)
     frc = _flex_revisit_coupon(revisit_coupon_name, revisit_coupon_discount, booking_url)
 
     # 再来院クーポン配信タイミング（日数）
-    # Day7(STEP9)からの追加delay
     _rv_days = max(7, revisit_coupon_timing)
-    _step10_delay = (_rv_days - 7) * 1440  # STEP9(Day7)からN日後まで
+    _step10_delay = (_rv_days - 7) * 1440
 
-    _btn_survey  = _flex_button("クーポンを受け取る →", survey_url or "https://example.com/survey")
-    _btn_booking = _flex_button("今すぐ予約する →", booking_url or "https://example.com/booking")
-    _btn_form    = _flex_button("次回クーポンをもらう →", form_url or "https://example.com/form")
-    _btn_form_r  = _flex_button("感想フォームはこちら →", form_url or "https://example.com/form")
-    _btn_review  = _flex_button("Googleの口コミを投稿する →", review_url or "https://maps.google.com", color="#E65100")
+    _btn_booking      = _flex_button("今すぐ予約する →", booking_url or "https://example.com/booking")
+    _btn_lp           = _flex_button("ホームページを見てみる →", lp_url or booking_url or "https://example.com/")
+    _btn_form         = _flex_button("次回クーポンをもらう →", form_url or "https://example.com/form")
+    _btn_form_r       = _flex_button("感想フォームはこちら →", form_url or "https://example.com/form")
+    _btn_review       = _flex_button("Googleの口コミを投稿する →", review_url or "https://maps.google.com", color="#E65100")
+    _btn_review_read  = _flex_button("お客様の口コミを見る →", review_url or booking_url or "https://maps.google.com")
+
+    # シナリオA用テキスト（fallback付き）
+    _owner_msg = owner_message or f"患者様一人ひとりのお体の状態に向き合い、根本からの改善をサポートしています。"
+    _focus     = main_focus or "お体の根本的な改善"
+    _wrong_text = (
+        wrong_approach
+        or "症状が出ている場所だけをマッサージしても、体全体のバランスが崩れていることが根本原因の場合、一時的には楽になっても繰り返してしまいます。"
+    )
 
     return [
-        # ─── シナリオA｜友だち登録直後（アンケート誘導） ─────────────
+        # ─── シナリオA｜友だち登録直後（ウェルカム→クーポン即配布→信頼構築） ─────────────
         {
             "name": f"シナリオA｜新規LP経由【{shop_name}】",
             "triggerType": "friend_add",
             "steps": [
+                # Step1: ウェルカム（即時）
                 {"stepOrder": 1, "delayMinutes": 0, "deliveryHour": None, "messageType": "text",
-                 "messageContent": R("{{name}}さん、はじめまして！【院長名】です。\n\nご登録ありがとうございます。\n\n下のアンケートにお答えいただいた方に、初回体験クーポンをプレゼントしています。\nぜひご回答ください！")},
-                {"stepOrder": 2, "delayMinutes": 0, "deliveryHour": None, "messageType": "flex",
-                 "messageContent": _flex_button("アンケートに答える →", shinsatsu_form_url or form_url or "https://example.com/form")},
-            ],
-        },
-        # ─── シナリオB｜アンケート回答後クーポン配布→予約フォロー ──────
-        {
-            "name": f"シナリオB｜アンケート後クーポン配布【{shop_name}】",
-            "triggerType": "tag_added",
-            "triggerTagName": tag_survey_done,
-            "steps": [
-                {"stepOrder": 1, "delayMinutes": 0, "deliveryHour": None, "messageType": "text",
-                 "messageContent": R("{{name}}さん、アンケートのご回答ありがとうございます！\n\n初回来院時に使えるクーポンをプレゼントします。\nぜひご来院の際にお役立てください。")},
+                 "messageContent": R("{{name}}さん、はじめまして！\n【院名】の【院長名】です。\n\nLINEへご登録いただきありがとうございます！\n\nこちらのLINEでは\n・お役立ち情報の発信\n・ご予約・ご相談の受付\nをしています。\n\n施術中はお電話に出られないこともありますので、\nぜひこちらのLINEをご活用ください。\n\nまずはお気軽にメッセージをどうぞ！")},
+                # Step2: クーポン即配布（即時）
                 {"stepOrder": 2, "delayMinutes": 0, "deliveryHour": None, "messageType": "flex",
                  "messageContent": fc},
+                # Step3: 先生の想い（Day1 20時）
                 {"stepOrder": 3, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "text",
-                 "messageContent": R("{{name}}さん、こんにちは。\n【院名】の【院長名】です。\n\n最近、こんなことはありませんか？\n\n・朝起きたとき、体が重い\n・夕方になると肩や首がパンパンになる\n・マッサージに行っても、しばらくするとまた戻る\n\nこれらは「疲れているから」ではなく、体のバランスが崩れているサインです。\n\nクーポンを使って、一度体験してみませんか？"),
-                 "conditionType": "tag_not_exists", "conditionValue": tag_checkin, "nextStepOnFalse": 15},
-                {"stepOrder": 4, "delayMinutes": 0, "deliveryHour": 20, "messageType": "flex",
-                 "messageContent": _btn_booking,
-                 "conditionType": "tag_not_exists", "conditionValue": tag_checkin, "nextStepOnFalse": 15},
-                {"stepOrder": 5, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "text",
-                 "messageContent": R("{{name}}さん、こんにちは。\n\n体のお悩みを抱えたまま毎日を過ごすのは、思っている以上に消耗するものです。\n\n実際にご来院された方からは、\n\n「あんなに悩んでいたのに、なぜもっと早く来なかったんだろう」\n\nという言葉をよくいただきます。\n\nクーポンの期限もあと少しです。"),
-                 "conditionType": "tag_not_exists", "conditionValue": tag_checkin, "nextStepOnFalse": 15},
+                 "messageContent": R(f"{{{{name}}}}さん、こんにちは。\n【院長名】です。\n\n少し私のことをお伝えさせてください。\n\n{_owner_msg}\n\nお体のことで何かご不安なことがあれば、\nどうぞお気軽にこちらのLINEにご連絡ください。"),
+                 "conditionType": "tag_not_exists", "conditionValue": tag_checkin, "nextStepOnFalse": 99},
+                # Step4: 一番力を入れていること（Day3 20時）
+                {"stepOrder": 4, "delayMinutes": 2880, "deliveryHour": 20, "messageType": "text",
+                 "messageContent": R(f"{{{{name}}}}さん、こんにちは。\n【院長名】です。\n\n当院が特に力を入れているのは、\n「{_focus}」です。\n\n「ずっとケアしているのに、なかなか良くならない」\nという方をよく見てきました。\n\n症状が出ている場所だけでなく、\nその根本にある原因にアプローチすることで、\n多くの方に「こんなに変わるの？」と喜んでいただいています。\n\nお体のことで気になることがあれば、\nいつでもご相談ください。"),
+                 "conditionType": "tag_not_exists", "conditionValue": tag_checkin, "nextStepOnFalse": 99},
+                # Step5: 来院前の不安解消（Day5 20時）
+                {"stepOrder": 5, "delayMinutes": 2880, "deliveryHour": 20, "messageType": "text",
+                 "messageContent": R("{{name}}さん、こんにちは。\n\n「整体院って、どんな場所なんだろう？」\n「どんな施術をするの？」\n「私が行っていいのかな？」\n\nはじめての方は、こんな疑問を感じることがあると思います。\n\n当院のことをもっと知っていただけるよう、\nホームページに詳しく載せています。\nぜひ一度ご覧ください。\n\n何かご不明な点があれば、いつでもLINEにご連絡ください。"),
+                 "conditionType": "tag_not_exists", "conditionValue": tag_checkin, "nextStepOnFalse": 99},
                 {"stepOrder": 6, "delayMinutes": 0, "deliveryHour": 20, "messageType": "flex",
-                 "messageContent": _btn_booking,
-                 "conditionType": "tag_not_exists", "conditionValue": tag_checkin, "nextStepOnFalse": 15},
-                {"stepOrder": 7, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "text",
-                 "messageContent": R("{{name}}さん、こんにちは。\n\n「行きたいとは思っているけれど、なんとなく先延ばし…」\n\nそういう方、実はとても多いです。最初の一歩が一番難しいと思いますが、ご来院いただいた方のほぼ全員が「来てよかった」とおっしゃっています。"),
-                 "conditionType": "tag_not_exists", "conditionValue": tag_checkin, "nextStepOnFalse": 15},
+                 "messageContent": _btn_lp,
+                 "conditionType": "tag_not_exists", "conditionValue": tag_checkin, "nextStepOnFalse": 99},
+                # Step6: お客様の声・口コミ（Day7 20時）
+                {"stepOrder": 7, "delayMinutes": 2880, "deliveryHour": 20, "messageType": "text",
+                 "messageContent": R("{{name}}さん、こんにちは。\n\n当院は、多くの患者様の喜びの声に支えられています。\n\n実際にご来院された方の声をご紹介します。\n\n・どんな症状だったのか\n・施術を受けてどう変わったのか\n・他院との違いは？\n\nぜひ「生の声」をご覧ください。"),
+                 "conditionType": "tag_not_exists", "conditionValue": tag_checkin, "nextStepOnFalse": 99},
                 {"stepOrder": 8, "delayMinutes": 0, "deliveryHour": 20, "messageType": "flex",
+                 "messageContent": _btn_review_read,
+                 "conditionType": "tag_not_exists", "conditionValue": tag_checkin, "nextStepOnFalse": 99},
+                # Step7: よくある間違い（Day9 20時）
+                {"stepOrder": 9, "delayMinutes": 2880, "deliveryHour": 20, "messageType": "text",
+                 "messageContent": R(f"{{{{name}}}}さん、こんにちは。\n\n一つ大切なことをお伝えしますね。\n\n{_wrong_text}\n\n当院では、症状の根本にある原因にアプローチする施術を行っています。\n\n「なんで良くならないんだろう」とお感じの方こそ、\nぜひ一度ご相談ください。"),
+                 "conditionType": "tag_not_exists", "conditionValue": tag_checkin, "nextStepOnFalse": 99},
+                # Step8: クロージング（Day11 20時）
+                {"stepOrder": 10, "delayMinutes": 2880, "deliveryHour": 20, "messageType": "text",
+                 "messageContent": R("{{name}}さん、こんにちは。\n【院長名】です。\n\n「行こうと思っているけど、なかなか…」\nという方、実はとても多いです。\n\n最初の一歩が一番難しいと感じる方がほとんどですが、\nご来院いただいた方のほぼ全員が\n「来てよかった」とおっしゃっています。\n\nお届けしたクーポンをぜひこの機会にご活用ください。"),
+                 "conditionType": "tag_not_exists", "conditionValue": tag_checkin, "nextStepOnFalse": 99},
+                {"stepOrder": 11, "delayMinutes": 0, "deliveryHour": 20, "messageType": "flex",
                  "messageContent": _btn_booking,
-                 "conditionType": "tag_not_exists", "conditionValue": tag_checkin, "nextStepOnFalse": 15},
-                {"stepOrder": 9, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "text",
-                 "messageContent": R("{{name}}さん、こんにちは。\n\nクーポンの期限が明日までとなりました。\n\nもし予定が合わない日があれば、お気軽に相談してください。日程の調整もできます。"),
-                 "conditionType": "tag_not_exists", "conditionValue": tag_checkin, "nextStepOnFalse": 15},
-                {"stepOrder": 10, "delayMinutes": 0, "deliveryHour": 20, "messageType": "flex",
+                 "conditionType": "tag_not_exists", "conditionValue": tag_checkin, "nextStepOnFalse": 99},
+                # Step9: 最後のフォロー（Day13 20時）
+                {"stepOrder": 12, "delayMinutes": 2880, "deliveryHour": 20, "messageType": "text",
+                 "messageContent": R("{{name}}さん、こんにちは。\n\n最後のご案内になります。\n\n体の不調は、放置するほど回復に時間がかかるケースが多いです。\n\n「気になってはいるけど、なかなか動けていない」\n\nそんな方にこそ、まずは一度来ていただきたいと思っています。\n\nクーポンをお持ちのうちに、ぜひご来院をお待ちしています。"),
+                 "conditionType": "tag_not_exists", "conditionValue": tag_checkin, "nextStepOnFalse": 99},
+                {"stepOrder": 13, "delayMinutes": 0, "deliveryHour": 20, "messageType": "flex",
                  "messageContent": _btn_booking,
-                 "conditionType": "tag_not_exists", "conditionValue": tag_checkin, "nextStepOnFalse": 15},
-                {"stepOrder": 11, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "text",
-                 "messageContent": R("{{name}}さん、こんにちは。\n\nお送りしていたクーポン、実は本日が最終日です。\n\n「行こうと思っていたけど、まだで…」という方、今日がラストチャンスです。"),
-                 "conditionType": "tag_not_exists", "conditionValue": tag_checkin, "nextStepOnFalse": 15},
-                {"stepOrder": 12, "delayMinutes": 0, "deliveryHour": 20, "messageType": "flex",
-                 "messageContent": _btn_booking,
-                 "conditionType": "tag_not_exists", "conditionValue": tag_checkin, "nextStepOnFalse": 15},
-                {"stepOrder": 13, "delayMinutes": 1440, "deliveryHour": 20, "messageType": "text",
-                 "messageContent": R("{{name}}さん、こんにちは。\n\n少し時間が経ちましたが、改めてご案内させてください。\n\n体のお悩みは、放置するほど改善に時間がかかるケースが多いです。早めにご来院いただくほど、回復も早くなります。"),
-                 "conditionType": "tag_not_exists", "conditionValue": tag_checkin, "nextStepOnFalse": 15},
-                {"stepOrder": 14, "delayMinutes": 0, "deliveryHour": 20, "messageType": "flex",
-                 "messageContent": _btn_booking,
-                 "conditionType": "tag_not_exists", "conditionValue": tag_checkin, "nextStepOnFalse": 15},
+                 "conditionType": "tag_not_exists", "conditionValue": tag_checkin, "nextStepOnFalse": 99},
             ],
         },
         # ─── シナリオC｜初来院チェックイン ────────────────────────────
@@ -432,7 +437,6 @@ def build_scenarios_for_client(
     shop_name: str,
     owner_name: str,
     booking_url: str,
-    survey_url: str,
     review_url: str,
     form_url: str,
     slug: str,
@@ -444,6 +448,10 @@ def build_scenarios_for_client(
     revisit_coupon_timing: int = 14,
     shinsatsu_form_url: str = "",
     shinsatsu_form_id: str = "",
+    owner_message: str = "",
+    main_focus: str = "",
+    wrong_approach: str = "",
+    lp_url: str = "",
 ) -> dict:
     """
     LINE Harnessにクライアント専用のシナリオ・タグ・QRを一括生成する。
@@ -467,7 +475,6 @@ def build_scenarios_for_client(
         "checkin":       "初来院済み",           # チェックインエンドポイントと一致
         "existing":      f"{shop_name}_既存顧客",
         "re_checkin":    "既存顧客",              # チェックインエンドポイントと一致
-        "survey_done":   "アンケート回答済み",
         "high_rating":   "口コミ候補",
         "low_rating":    "改善フィードバック",
         "review_coupon": f"{shop_name}_感想クーポン配布済み",
@@ -499,20 +506,16 @@ def build_scenarios_for_client(
                 raise RuntimeError(f"タグ作成失敗 ({name}): {res.text}")
 
     # ── シナリオテンプレート取得 ────────────────────────────────────
-    # survey_url 未設定の場合は form_url（感想フォーム）にフォールバック
-    effective_survey_url = survey_url or form_url
     templates = _scenario_templates(
         shop_name=shop_name,
         owner_name=owner_name,
         booking_url=booking_url,
-        survey_url=effective_survey_url,
         review_url=review_url,
         form_url=form_url,
         tag_lp=tag_names["lp"],
         tag_checkin=tag_names["checkin"],
         tag_existing=tag_names["existing"],
         tag_re_checkin=tag_names["re_checkin"],
-        tag_survey_done=tag_names["survey_done"],
         coupon_name=coupon_name,
         coupon_discount=coupon_discount,
         revisit_coupon_name=revisit_coupon_name,
@@ -520,6 +523,10 @@ def build_scenarios_for_client(
         review_coupon_tag_id=tag_ids.get("review_coupon", ""),
         revisit_coupon_timing=revisit_coupon_timing,
         shinsatsu_form_url=shinsatsu_form_url,
+        owner_message=owner_message,
+        main_focus=main_focus,
+        wrong_approach=wrong_approach,
+        lp_url=lp_url,
     )
 
     # ── 既存シナリオ一覧取得（全削除） ──────────────────────────────
@@ -614,15 +621,6 @@ def build_scenarios_for_client(
         if not er_res.is_success:
             raise RuntimeError(f"エントリールート作成失敗 ({name}): {er_res.text}")
         return er_res.json()["data"]["id"]
-
-    # 問診フォームの on_submit_tag_id を「アンケート回答済み」に設定
-    if shinsatsu_form_id and "survey_done" in tag_ids:
-        httpx.put(
-            f"{harness_url}/api/forms/{shinsatsu_form_id}",
-            headers=headers,
-            json={"onSubmitTagId": tag_ids["survey_done"]},
-            timeout=15,
-        )
 
     # ref_code は ASCII のみ（日本語slugはハッシュに変換）
     ref_slug = _ascii_ref_slug(slug)
