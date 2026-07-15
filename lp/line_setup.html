@@ -243,7 +243,18 @@
             <li>作成したプロバイダー → Messaging APIチャネルを選択</li>
             <li>「チャネル基本設定」タブ → <strong>チャネルID</strong>（数字）と<strong>チャネルシークレット</strong>をコピー</li>
             <li>「Messaging API設定」タブ → ページ下部の「チャネルアクセストークン（長期）」の「発行」をクリックしてコピー</li>
+            <li style="margin-top:8px;">「Messaging API設定」タブ → <strong>Webhook設定</strong> 欄で以下を行う：
+              <ul style="margin-top:6px; padding-left:16px; list-style:disc; line-height:2;">
+                <li>Webhook URLに下のURLをコピーして貼り付け</li>
+                <li>「Webhookの利用」を <strong>ON</strong> にする</li>
+                <li>「検証」ボタンで接続確認（成功と表示されればOK）</li>
+              </ul>
+            </li>
           </ol>
+          <div style="margin-top:12px; background:#fff; border:1.5px solid #a5d6a7; border-radius:8px; padding:10px 14px; display:flex; align-items:center; gap:8px;">
+            <span style="font-size:12px; color:#555; flex:1; word-break:break-all;" id="webhookUrlDisplay">読み込み中...</span>
+            <button onclick="copyWebhookUrl()" style="flex-shrink:0; padding:4px 12px; background:#00897B; color:#fff; border:none; border-radius:6px; font-size:12px; cursor:pointer;">コピー</button>
+          </div>
           <a href="https://developers.line.biz/console/" target="_blank" rel="noopener" class="btn-console">
             LINE Developers Console を開く →
           </a>
@@ -306,6 +317,26 @@
 
   <script>
     const slug = location.pathname.replace(/^\//, '').replace(/\/line-setup.*$/, '');
+
+    // Webhook URL 取得・表示
+    let _webhookUrl = '';
+    fetch('/api/webhook-url')
+      .then(r => r.json())
+      .then(d => {
+        _webhookUrl = d.webhook_url || '';
+        const el = document.getElementById('webhookUrlDisplay');
+        if (el) el.textContent = _webhookUrl;
+      })
+      .catch(() => {});
+
+    function copyWebhookUrl() {
+      if (!_webhookUrl) return;
+      navigator.clipboard.writeText(_webhookUrl).then(() => {
+        const btn = event.target;
+        btn.textContent = 'コピー済み';
+        setTimeout(() => { btn.textContent = 'コピー'; }, 2000);
+      });
+    }
 
     // LP登録済みデータの読み込み
     fetch(`/lp/hearing/${slug}`)

@@ -20,6 +20,6 @@ services:
       - key: LINE_HARNESS_API_KEY
         sync: false
       - key: LINE_HARNESS_API_URL
-        value: https://line-crm-worker.uchiyama1128.workers.dev
+        value: https://line-crm-worker.marunage-crm.workers.dev
       - key: LIFF_URL
         value: https://liff.line.me/2009607643-QGWpmE45

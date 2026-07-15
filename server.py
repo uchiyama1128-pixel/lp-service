@@ -230,6 +230,12 @@ async def get_form():
     return FORM_PATH.read_text(encoding="utf-8")
 
 
+@app.get("/api/webhook-url")
+async def get_webhook_url():
+    harness_url = os.getenv("LINE_HARNESS_API_URL", "https://line-crm-worker.marunage-crm.workers.dev")
+    return {"webhook_url": f"{harness_url}/webhook"}
+
+
 @app.get("/line-form", response_class=HTMLResponse)
 async def get_line_form():
     return LINE_HEARING_PATH.read_text(encoding="utf-8")
@@ -611,7 +617,7 @@ async def post_line_setup(slug: str, request: Request):
             raise HTTPException(status_code=404, detail="LP情報が見つかりません")
 
         shop_name_for_account = data.get("shop_name", slug)
-        harness_url_val = os.getenv("LINE_HARNESS_API_URL", "https://line-crm-worker.uchiyama1128.workers.dev")
+        harness_url_val = os.getenv("LINE_HARNESS_API_URL", "https://line-crm-worker.marunage-crm.workers.dev")
         harness_key_val = os.getenv("LINE_HARNESS_API_KEY", "")
         harness_headers = {"Authorization": f"Bearer {harness_key_val}", "Content-Type": "application/json"}
 
@@ -781,7 +787,7 @@ async def post_line_setup(slug: str, request: Request):
         )
 
         # ── Webhook URL を LINE チャンネルに自動設定 ─────────────────
-        harness_worker_url = os.getenv("LINE_HARNESS_API_URL", "https://line-crm-worker.uchiyama1128.workers.dev")
+        harness_worker_url = os.getenv("LINE_HARNESS_API_URL", "https://line-crm-worker.marunage-crm.workers.dev")
         webhook_endpoint = f"{harness_worker_url}/webhook"
         try:
             httpx.put(
@@ -918,7 +924,7 @@ async def get_dashboard(slug: str, token: str):
     if data.get("_dashboard_token") != token:
         raise HTTPException(status_code=403, detail="URLが正しくありません")
 
-    harness_url_val = os.getenv("LINE_HARNESS_API_URL", "https://line-crm-worker.uchiyama1128.workers.dev")
+    harness_url_val = os.getenv("LINE_HARNESS_API_URL", "https://line-crm-worker.marunage-crm.workers.dev")
     harness_key_val = os.getenv("LINE_HARNESS_API_KEY", "")
     headers = {"Authorization": f"Bearer {harness_key_val}", "Content-Type": "application/json"}
 
@@ -1110,7 +1116,7 @@ async def get_customers(slug: str, token: str):
     account_id = data.get("line_account_id", "")
     form_id = data.get("_form_id", "")
     shinsatsu_form_id = data.get("_shinsatsu_form_id", "")
-    harness_url = os.getenv("LINE_HARNESS_API_URL", "https://line-crm-worker.uchiyama1128.workers.dev")
+    harness_url = os.getenv("LINE_HARNESS_API_URL", "https://line-crm-worker.marunage-crm.workers.dev")
     harness_key = os.getenv("LINE_HARNESS_API_KEY", "")
     if not harness_key or not account_id:
         return {"friends": [], "submissions": {}}
@@ -1185,7 +1191,7 @@ async def set_appointment(slug: str, friend_id: str, token: str, request: Reques
     appointment_date = body.get("appointment_date", "").strip()  # "YYYY-MM-DD" or ""
     appointment_time = body.get("appointment_time", "").strip()  # "HH:MM" or ""
 
-    harness_url = os.getenv("LINE_HARNESS_API_URL", "https://line-crm-worker.uchiyama1128.workers.dev")
+    harness_url = os.getenv("LINE_HARNESS_API_URL", "https://line-crm-worker.marunage-crm.workers.dev")
     harness_key = os.getenv("LINE_HARNESS_API_KEY", "")
     if not harness_key:
         raise HTTPException(status_code=500, detail="API key not configured")
@@ -1326,7 +1332,7 @@ async def update_scenario_step(slug: str, token: str, request: Request):
     if scenario_id not in allowed_ids:
         raise HTTPException(status_code=403, detail="Scenario not found for this account")
 
-    harness_url = os.getenv("LINE_HARNESS_API_URL", "https://line-crm-worker.uchiyama1128.workers.dev")
+    harness_url = os.getenv("LINE_HARNESS_API_URL", "https://line-crm-worker.marunage-crm.workers.dev")
     harness_key = os.getenv("LINE_HARNESS_API_KEY", "")
     headers = {"Authorization": f"Bearer {harness_key}", "Content-Type": "application/json"}
 
@@ -1361,7 +1367,7 @@ async def update_reminder_step(slug: str, token: str, request: Request):
     if data.get("_reminder_id") != reminder_id:
         raise HTTPException(status_code=403, detail="Reminder not found for this account")
 
-    harness_url = os.getenv("LINE_HARNESS_API_URL", "https://line-crm-worker.uchiyama1128.workers.dev")
+    harness_url = os.getenv("LINE_HARNESS_API_URL", "https://line-crm-worker.marunage-crm.workers.dev")
     harness_key = os.getenv("LINE_HARNESS_API_KEY", "")
     headers = {"Authorization": f"Bearer {harness_key}", "Content-Type": "application/json"}
 
